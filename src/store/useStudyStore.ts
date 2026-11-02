@@ -11,7 +11,9 @@ interface StudyState {
   // Acciones
   getActiveStudy: () => Study | undefined;
   setActiveStudyId: (id: string) => void;
-  createStudy: (title: string, tags?: string[]) => Study;
+  createStudy: (title: string, tags?: string[], description?: string) => Study;
+  deleteStudy: (id: string) => void;
+  duplicateStudy: (id: string) => Study;
   updateStudyTitle: (id: string, title: string) => void;
   updateStudyDescription: (id: string, description: string) => void;
   addTagToStudy: (id: string, tag: string) => void;
@@ -167,12 +169,12 @@ export const useStudyStore = create<StudyState>()(
         set({ activeStudyId: id });
       },
 
-      createStudy: (title: string, tags: string[] = ['Personal']) => {
+      createStudy: (title: string, tags: string[] = ['Personal'], description: string = 'Notas y reflexiones compartidas.') => {
         const id = `study-${Date.now()}`;
         const newStudy: Study = {
           id,
           title: title.trim() || 'Nuevo Estudio Bíblico',
-          description: 'Notas y reflexiones compartidas.',
+          description: description.trim() || 'Notas y reflexiones compartidas.',
           tags,
           createdAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
           updatedAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
@@ -193,6 +195,52 @@ export const useStudyStore = create<StudyState>()(
         });
 
         return newStudy;
+      },
+
+      deleteStudy: (id: string) => {
+        const remaining = get().studies.filter((s) => s.id !== id);
+        if (remaining.length === 0) {
+          const defaultStudy: Study = {
+            id: `study-${Date.now()}`,
+            title: 'Mi Nuevo Estudio Bíblico',
+            description: 'Reflexiones y notas personales.',
+            tags: ['Personal'],
+            createdAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
+            updatedAt: 'Recién creado',
+            author: 'Alejandro y Esposa',
+            blocks: []
+          };
+          set({ studies: [defaultStudy], activeStudyId: defaultStudy.id });
+          return;
+        }
+
+        const nextActiveId = get().activeStudyId === id ? remaining[0].id : get().activeStudyId;
+        set({
+          studies: remaining,
+          activeStudyId: nextActiveId
+        });
+      },
+
+      duplicateStudy: (id: string) => {
+        const source = get().studies.find((s) => s.id === id);
+        if (!source) return get().studies[0];
+        const newId = `study-${Date.now()}`;
+        const cloned: Study = {
+          ...source,
+          id: newId,
+          title: `${source.title} (Copia)`,
+          createdAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
+          updatedAt: 'Recién duplicado',
+          blocks: source.blocks.map((b) => ({
+            ...b,
+            id: `blk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+          }))
+        };
+        set({
+          studies: [cloned, ...get().studies],
+          activeStudyId: newId
+        });
+        return cloned;
       },
 
       updateStudyTitle: (id: string, title: string) => {

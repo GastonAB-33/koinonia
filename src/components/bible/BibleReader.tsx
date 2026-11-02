@@ -5,7 +5,15 @@ import { BibleNavigation } from './BibleNavigation';
 import { VerseItem } from './VerseItem';
 import { PhraseSelectionMenu } from './PhraseSelectionMenu';
 import { BibleVerse, BibleVersion } from '../../types/bible';
-import { Loader2 } from 'lucide-react';
+import { useIsMobile } from '../../hooks/useMediaQuery';
+import { Loader2, Link2 } from 'lucide-react';
+
+const VERSIONS: { id: BibleVersion; label: string }[] = [
+  { id: 'RVR1960', label: 'RVR 1960' },
+  { id: 'NVI', label: 'NVI' },
+  { id: 'DHH', label: 'DHH' },
+  { id: 'LBLA', label: 'LBLA' },
+];
 
 export const BibleReader: React.FC = () => {
   const {
@@ -15,9 +23,11 @@ export const BibleReader: React.FC = () => {
     isParallelMode,
     currentVersion,
     parallelVersion,
+    setParallelVersion,
     isLoading
   } = useBibleStore();
   const { currentTheme } = useThemeStore();
+  const isMobile = useIsMobile();
 
   const [selectedPhraseData, setSelectedPhraseData] = useState<{
     phrase: string;
@@ -94,27 +104,58 @@ export const BibleReader: React.FC = () => {
     }, 30);
   };
 
+  // Refs para el scroll sincronizado en paralelo
+  const topScrollRef = React.useRef<HTMLDivElement>(null);
+  const bottomScrollRef = React.useRef<HTMLDivElement>(null);
+  const isSyncingTop = React.useRef(false);
+  const isSyncingBottom = React.useRef(false);
+
+  // Sincronizar scroll desde la mitad superior a la inferior
+  const handleTopScroll = () => {
+    if (selectedPhraseData) setSelectedPhraseData(null);
+    if (isSyncingTop.current) {
+      isSyncingTop.current = false;
+      return;
+    }
+    const topEl = topScrollRef.current;
+    const bottomEl = bottomScrollRef.current;
+    if (!topEl || !bottomEl) return;
+
+    const topMax = topEl.scrollHeight - topEl.clientHeight;
+    const bottomMax = bottomEl.scrollHeight - bottomEl.clientHeight;
+    if (topMax <= 0 || bottomMax <= 0) return;
+
+    const ratio = topEl.scrollTop / topMax;
+    isSyncingBottom.current = true;
+    bottomEl.scrollTop = ratio * bottomMax;
+  };
+
+  // Sincronizar scroll desde la mitad inferior a la superior
+  const handleBottomScroll = () => {
+    if (selectedPhraseData) setSelectedPhraseData(null);
+    if (isSyncingBottom.current) {
+      isSyncingBottom.current = false;
+      return;
+    }
+    const topEl = topScrollRef.current;
+    const bottomEl = bottomScrollRef.current;
+    if (!topEl || !bottomEl) return;
+
+    const topMax = topEl.scrollHeight - topEl.clientHeight;
+    const bottomMax = bottomEl.scrollHeight - bottomEl.clientHeight;
+    if (topMax <= 0 || bottomMax <= 0) return;
+
+    const ratio = bottomEl.scrollTop / bottomMax;
+    isSyncingTop.current = true;
+    topEl.scrollTop = ratio * topMax;
+  };
+
   // Cerrar el menú flotante cuando el usuario hace scroll en el texto
   const handleScroll = () => {
     if (selectedPhraseData) {
       setSelectedPhraseData(null);
     }
   };
-
-  // Limpiar menú flotante cuando se deselecciona el texto
-  useEffect(() => {
-    const handleDocumentSelectionChange = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || sel.toString().trim().length === 0) {
-        // No cerrar de inmediato para permitir hacer clic en los botones del menú flotante
-      }
-    };
-
-    document.addEventListener('selectionchange', handleDocumentSelectionChange);
-    return () => {
-      document.removeEventListener('selectionchange', handleDocumentSelectionChange);
-    };
-  }, []);
 
   return (
     <div
@@ -124,23 +165,143 @@ export const BibleReader: React.FC = () => {
       {/* Barra de navegación superior del lector */}
       <BibleNavigation />
 
-      {/* Contenedor de lectura con soporte de comparación */}
-      <div
-        className="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8"
-        onMouseUp={handleTextSelection}
-        onTouchEnd={handleTextSelection}
-        onScroll={handleScroll}
-      >
-        {isLoading ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
-            <p className="text-sm font-medium">Cargando Sagradas Escrituras...</p>
+      {/* Estados de Carga o Sin Datos */}
+      {isLoading ? (
+        <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+          <p className="text-sm font-medium">Cargando Sagradas Escrituras...</p>
+        </div>
+      ) : !chapterData ? (
+        <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+          Selecciona un libro y capítulo para comenzar la lectura.
+        </div>
+      ) : isParallelMode && isMobile ? (
+        /* ========================================================================= */
+        /* MODO COMPARACIÓN EN MÓVIL: MITAD SUPERIOR (50%) + MITAD INFERIOR (50%)     */
+        /* ========================================================================= */
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* 1. Mitad Superior: Versión Primaria (50% de altura, scroll independiente) */}
+          <div className="flex-1 h-1/2 flex flex-col overflow-hidden border-b border-amber-300/40 dark:border-slate-800">
+            {/* Cabecera compacta de la versión superior */}
+            <div
+              className={`px-3.5 py-1.5 flex items-center justify-between border-b shrink-0 select-none ${
+                isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-amber-50/90 border-amber-200/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`font-serif font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {chapterData.bookName} {chapterData.chapter}
+                </span>
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    isDark
+                      ? 'text-amber-300 bg-amber-950/80 border border-amber-800/60'
+                      : 'text-amber-800 bg-amber-100/90 border border-amber-200'
+                  }`}
+                >
+                  {currentVersion}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-sans">
+                {chapterData.verses.length} versículos
+              </span>
+            </div>
+
+            {/* Lista de versículos versión 1 (scroll sincronizado) */}
+            <div
+              ref={topScrollRef}
+              className="flex-1 overflow-y-auto p-3.5 space-y-1 text-left leading-loose"
+              onMouseUp={handleTextSelection}
+              onTouchEnd={handleTextSelection}
+              onScroll={handleTopScroll}
+            >
+              {chapterData.verses.map((verse) => (
+                <VerseItem key={`top-v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
+              ))}
+            </div>
           </div>
-        ) : !chapterData ? (
-          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-            Selecciona un libro y capítulo para comenzar la lectura.
+
+          {/* Divisor sutil entre ambas mitades con indicador de scroll sincronizado */}
+          <div
+            className={`py-1 px-3.5 shrink-0 flex items-center justify-between border-y text-[10px] select-none ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Desplazamiento en paralelo sincronizado</span>
+            </div>
+            <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300">
+              1:1
+            </span>
           </div>
-        ) : (
+
+          {/* 2. Mitad Inferior: Versión Secundaria (50% de altura, scroll sincronizado) */}
+          <div className="flex-1 h-1/2 flex flex-col overflow-hidden">
+            {/* Cabecera compacta con selector de versión paralela */}
+            <div
+              className={`px-3.5 py-1.5 flex items-center justify-between border-b shrink-0 select-none ${
+                isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-blue-50/90 border-blue-200/60'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`font-serif font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {parallelChapterData?.bookName || chapterData.bookName} {parallelChapterData?.chapter || chapterData.chapter}
+                </span>
+
+                {/* Selector rápido de versión secundaria */}
+                <select
+                  value={parallelVersion}
+                  onChange={(e) => setParallelVersion(e.target.value as BibleVersion)}
+                  className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg border focus:outline-none ${
+                    isDark
+                      ? 'text-blue-300 bg-blue-950/80 border-blue-800/60'
+                      : 'text-blue-800 bg-blue-100/90 border-blue-200'
+                  }`}
+                  title="Cambiar versión para comparar"
+                >
+                  {VERSIONS.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-[11px] text-slate-400 font-sans">
+                {parallelChapterData?.verses.length || 0} versículos
+              </span>
+            </div>
+
+            {/* Lista de versículos versión 2 (scroll sincronizado) */}
+            <div
+              ref={bottomScrollRef}
+              className="flex-1 overflow-y-auto p-3.5 space-y-1 text-left leading-loose"
+              onMouseUp={handleTextSelection}
+              onTouchEnd={handleTextSelection}
+              onScroll={handleBottomScroll}
+            >
+              {parallelChapterData ? (
+                parallelChapterData.verses.map((verse) => (
+                  <VerseItem key={`bot-pv-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
+                ))
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+                  Cargando versión de comparación...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ========================================================================= */
+        /* MODO NORMAL O ESCRITORIO (Lectura estándar a pantalla completa o 2 cols)   */
+        /* ========================================================================= */
+        <div
+          className="flex-1 overflow-y-auto p-3.5 sm:p-6 lg:p-8"
+          onMouseUp={handleTextSelection}
+          onTouchEnd={handleTextSelection}
+          onScroll={handleScroll}
+        >
           <div className={`max-w-6xl mx-auto ${isParallelMode ? 'grid grid-cols-1 md:grid-cols-2 gap-8' : 'max-w-3xl'}`}>
             {/* Columna Principal / Versión Primaria */}
             <div className="space-y-4">
@@ -180,7 +341,7 @@ export const BibleReader: React.FC = () => {
               </div>
             </div>
 
-            {/* Columna Secundaria / Modo Paralelo */}
+            {/* Columna Secundaria / Modo Paralelo en Escritorio */}
             {isParallelMode && parallelChapterData && (
               <div
                 className={`space-y-4 border-t md:border-t-0 md:border-l md:pl-8 pt-6 md:pt-0 ${
@@ -224,8 +385,8 @@ export const BibleReader: React.FC = () => {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Menú Flotante para frases o palabras seleccionadas */}
       {selectedPhraseData && (

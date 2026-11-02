@@ -5,10 +5,11 @@ import { StudyEditor } from '../study/StudyEditor';
 import { InfiniteCanvas } from '../canvas/InfiniteCanvas';
 import { FreeBookWorkspace } from '../freebook/FreeBookWorkspace';
 import { SketchbookWorkspace } from '../sketchbook/SketchbookWorkspace';
-import { MobileBottomSheet, BottomSheetSnap } from './MobileBottomSheet';
+import { MobileMenuView } from './MobileMenuView';
+import { MobileNavigationBar, MobileNavView } from './MobileNavigationBar';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useThemeStore } from '../../store/useThemeStore';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ArrowLeft, BookMarked, FileText, Palette } from 'lucide-react';
 
 export interface ResizableLayoutHandle {
   setPreset: (preset: 'left-only' | 'split-50' | 'right-only') => void;
@@ -25,16 +26,74 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     const rightPanelRef = useRef<ImperativePanelHandle>(null);
     const { currentTheme } = useThemeStore();
     const isMobile = useIsMobile();
-    const [mobileSnap, setMobileSnap] = useState<BottomSheetSnap>('half');
+
+    // Estado de la vista activa en móvil: 'menu' (0) | 'bible' (1) | 'study' (2)
+    const [mobileView, setMobileView] = useState<MobileNavView>('bible');
 
     const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
+
+    // Manejo de gestos táctiles de deslizamiento (Swipe)
+    const touchStartX = useRef<number | null>(null);
+    const touchStartY = useRef<number | null>(null);
+    const isHorizontalSwipe = useRef<boolean>(false);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+      isHorizontalSwipe.current = false;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+      if (touchStartX.current === null || touchStartY.current === null) return;
+      const deltaX = e.touches[0].clientX - touchStartX.current;
+      const deltaY = e.touches[0].clientY - touchStartY.current;
+
+      // Verificar que el movimiento sea principalmente horizontal
+      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && Math.abs(deltaX) > 20) {
+        isHorizontalSwipe.current = true;
+      }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+      if (touchStartX.current === null) return;
+      const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+      touchStartX.current = null;
+      touchStartY.current = null;
+
+      if (!isHorizontalSwipe.current) return;
+      isHorizontalSwipe.current = false;
+
+      const SWIPE_THRESHOLD = 45;
+
+      if (deltaX < -SWIPE_THRESHOLD) {
+        // Deslizar de DERECHA a IZQUIERDA (<-)
+        // Avanza hacia la pantalla de la derecha:
+        // - En menú (0) pasa a biblia (1)
+        // - En biblia (1) pasa a herramientas de estudio (2)
+        if (mobileView === 'bible') {
+          setMobileView('study');
+        } else if (mobileView === 'menu') {
+          setMobileView('bible');
+        }
+      } else if (deltaX > SWIPE_THRESHOLD) {
+        // Deslizar de IZQUIERDA a DERECHA (->)
+        // Retrocede hacia la pantalla de la izquierda:
+        // - En herramientas de estudio (2) vuelve a biblia (1)
+        // - En biblia (1) pasa a menú (0)
+        if (mobileView === 'bible') {
+          setMobileView('menu');
+        } else if (mobileView === 'study') {
+          setMobileView('bible');
+        }
+      }
+    };
 
     useImperativeHandle(ref, () => ({
       setPreset: (preset) => {
         if (isMobile) {
-          if (preset === 'left-only') setMobileSnap('peek');
-          else if (preset === 'split-50') setMobileSnap('half');
-          else if (preset === 'right-only') setMobileSnap('full');
+          if (preset === 'left-only') setMobileView('bible');
+          else if (preset === 'right-only') setMobileView('study');
+          else if (preset === 'split-50') setMobileView('bible');
         } else {
           if (preset === 'left-only') {
             leftPanelRef.current?.resize(100);
@@ -50,36 +109,164 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
       }
     }));
 
-    // Versión Móvil: Lector Bíblico a ancho completo + Bottom Sheet Deslizable
+    // =========================================================================
+    // VERSIÓN MÓVIL (Con carrusel animado de 3 pantallas: Menú <- Biblia -> Estudio)
+    // =========================================================================
     if (isMobile) {
       return (
-        <div className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden relative">
-          {/* Lector Bíblico Móvil: Se ajusta el espacio inferior según el estado del Bottom Sheet */}
-          <div
-            className={`w-full h-full flex flex-col transition-all duration-300 overflow-hidden ${
-              mobileSnap === 'peek'
-                ? 'pb-14'
-                : mobileSnap === 'half'
-                ? 'pb-[52vh]'
-                : 'opacity-0 pointer-events-none'
-            }`}
-            style={{ backgroundColor: 'var(--bg-reader, #fdfbf7)' }}
-          >
-            <BibleReader />
+        <div
+          className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden relative flex flex-col select-none"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Contenedor con animación horizontal deslizante (Slide Animation) */}
+          <div className="flex-1 w-full overflow-hidden relative">
+            <div
+              className="flex w-[300%] h-full transition-transform duration-300 ease-out"
+              style={{
+                transform:
+                  mobileView === 'menu'
+                    ? 'translateX(0%)'
+                    : mobileView === 'bible'
+                    ? 'translateX(-33.333333%)'
+                    : 'translateX(-66.666667%)'
+              }}
+            >
+              {/* 1. Vista Menú (0% - Izquierda) */}
+              <div className="w-1/3 h-full flex-shrink-0 overflow-hidden">
+                <MobileMenuView
+                  onGoToBible={() => setMobileView('bible')}
+                  onGoToStudy={() => setMobileView('study')}
+                />
+              </div>
+
+              {/* 2. Vista Lector Bíblico (33.33% - Centro, con comparación mitad superior e inferior) */}
+              <div
+                className="w-1/3 h-full flex-shrink-0 flex flex-col transition-colors overflow-hidden"
+                style={{ backgroundColor: 'var(--bg-reader, #fdfbf7)' }}
+              >
+                <BibleReader />
+              </div>
+
+              {/* 3. Vista Herramientas de Estudio (66.66% - Derecha, pantalla completa) */}
+              <div
+                className={`w-1/3 h-full flex-shrink-0 flex flex-col overflow-hidden transition-colors ${
+                  isDark
+                    ? currentTheme === 'dark-blackout'
+                      ? 'bg-black text-white'
+                      : 'bg-slate-950 text-white'
+                    : 'bg-white text-slate-800'
+                }`}
+              >
+                {/* Cabecera superior de Herramientas de Estudio */}
+                <div
+                  className={`px-3 py-2 border-b flex items-center justify-between shrink-0 select-none z-20 backdrop-blur-md ${
+                    isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-slate-50/95 border-slate-200'
+                  }`}
+                  // Capturar swipe en el header de herramientas para volver a biblia
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  <button
+                    onClick={() => setMobileView('bible')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-colors ${
+                      isDark
+                        ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
+                        : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
+                    }`}
+                    title="Volver a la Biblia"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Biblia</span>
+                  </button>
+
+                  {/* Selector de pestañas de estudio */}
+                  {setRightPanelTab && (
+                    <div
+                      className={`flex items-center p-0.5 rounded-xl border text-xs ${
+                        isDark ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'
+                      }`}
+                    >
+                      <button
+                        onClick={() => setRightPanelTab('sketchbook')}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all ${
+                          rightPanelTab === 'sketchbook'
+                            ? isDark
+                              ? 'bg-slate-700 text-amber-400 font-bold shadow-xs'
+                              : 'bg-white text-amber-900 font-bold shadow-xs'
+                            : isDark
+                            ? 'text-slate-400'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        <BookMarked className="w-3.5 h-3.5 text-[#C4BC7B]" />
+                        <span>Cornell</span>
+                      </button>
+                      <button
+                        onClick={() => setRightPanelTab('editor')}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all ${
+                          rightPanelTab === 'editor'
+                            ? isDark
+                              ? 'bg-slate-700 text-emerald-400 font-bold shadow-xs'
+                              : 'bg-white text-emerald-900 font-bold shadow-xs'
+                            : isDark
+                            ? 'text-slate-400'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Notas</span>
+                      </button>
+                      <button
+                        onClick={() => setRightPanelTab('canvas')}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all ${
+                          rightPanelTab === 'canvas'
+                            ? isDark
+                              ? 'bg-slate-700 text-blue-400 font-bold shadow-xs'
+                              : 'bg-white text-blue-900 font-bold shadow-xs'
+                            : isDark
+                            ? 'text-slate-400'
+                            : 'text-slate-500'
+                        }`}
+                      >
+                        <Palette className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Pizarra</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Contenido de Herramientas de Estudio a Pantalla Completa */}
+                <div className="flex-1 overflow-hidden relative">
+                  {rightPanelTab === 'editor' ? (
+                    <StudyEditor />
+                  ) : rightPanelTab === 'freebook' ? (
+                    <FreeBookWorkspace />
+                  ) : rightPanelTab === 'sketchbook' ? (
+                    <SketchbookWorkspace />
+                  ) : (
+                    <InfiniteCanvas />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Hoja Inferior Deslizable (Bottom Sheet) */}
-          <MobileBottomSheet
+          {/* Barra de Navegación Inferior Móvil */}
+          <MobileNavigationBar
+            activeView={mobileView}
+            onViewChange={setMobileView}
             rightPanelTab={rightPanelTab}
-            setRightPanelTab={setRightPanelTab}
-            snapState={mobileSnap}
-            onSnapChange={setMobileSnap}
           />
         </div>
       );
     }
 
-    // Versión Escritorio: Paneles Redimensionables lado a lado
+    // =========================================================================
+    // VERSIÓN ESCRITORIO (Paneles Redimensionables lado a lado con react-resizable-panels)
+    // =========================================================================
     return (
       <div className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden">
         <PanelGroup direction="horizontal" autoSaveId="koinonia-split-layout">

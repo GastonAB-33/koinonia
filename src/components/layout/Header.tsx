@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStudyStore } from '../../store/useStudyStore';
 import { useLexiconStore } from '../../store/useLexiconStore';
 import { useThemeStore } from '../../store/useThemeStore';
-import { StudyListModal } from '../study/StudyListModal';
+import { StudySidebarDrawer } from '../study/StudySidebarDrawer';
 import { ThemeDropdown } from './ThemeDropdown';
 import {
   BookOpen,
+  Menu,
   Sparkles,
   ChevronDown,
   Users,
@@ -29,13 +30,25 @@ export const Header: React.FC<HeaderProps> = ({
   setRightPanelTab,
   onLayoutPreset
 }) => {
-  const { getActiveStudy } = useStudyStore();
+  const { getActiveStudy, studies } = useStudyStore();
   const { openLexicon } = useLexiconStore();
   const { currentTheme } = useThemeStore();
-  const [isStudyModalOpen, setIsStudyModalOpen] = useState(false);
+  const [isStudiesDrawerOpen, setIsStudiesDrawerOpen] = useState(false);
 
   const activeStudy = getActiveStudy();
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
+
+  // Atajo de teclado Ctrl+E o Cmd+E para alternar menú de estudios
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setIsStudiesDrawerOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <header
@@ -43,42 +56,66 @@ export const Header: React.FC<HeaderProps> = ({
         isDark ? 'bg-slate-950/95 border-slate-800 text-white' : 'bg-white/90 border-slate-200/90 text-slate-800'
       }`}
     >
-      {/* Logotipo y Título de la Aplicación */}
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white shadow-md">
-          <BookOpen className="w-4 h-4" />
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h1 className={`font-serif font-bold text-base tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              Koinonía
-            </h1>
-            <span
-              className={`text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded ${
-                isDark ? 'bg-amber-950 text-amber-300 border border-amber-800/60' : 'bg-amber-100 text-amber-900'
-              }`}
-            >
-              Estudio
+      {/* Sección Izquierda: Botón de Menú de Estudios + Logotipo */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* BOTÓN PRINCIPAL PARA ABRIR EL MENÚ LATERAL IZQUIERDO DE ESTUDIOS */}
+        <button
+          onClick={() => setIsStudiesDrawerOpen(true)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs cursor-pointer ${
+            isDark
+              ? 'bg-amber-950/80 hover:bg-amber-900 border-amber-800/80 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+              : 'bg-amber-50 hover:bg-amber-100/90 border-amber-300 text-amber-950 shadow-2xs'
+          }`}
+          title="Abrir menú lateral izquierdo: Mis Estudios Bíblicos (Ctrl+E)"
+        >
+          <Menu className="w-4 h-4 text-amber-500 shrink-0" />
+          <span className="font-bold">Mis Estudios</span>
+          <span
+            className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ml-0.5 ${
+              isDark ? 'bg-amber-800 text-amber-200' : 'bg-amber-200 text-amber-900'
+            }`}
+          >
+            {studies.length}
+          </span>
+        </button>
+
+        {/* Logotipo y Título de la Aplicación */}
+        <div className="hidden lg:flex items-center gap-2.5 pl-1 border-l border-slate-200 dark:border-slate-800">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white shadow-md">
+            <BookOpen className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h1 className={`font-serif font-bold text-base tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Koinonía
+              </h1>
+              <span
+                className={`text-[10px] uppercase font-bold tracking-widest px-1.5 py-0.2 rounded ${
+                  isDark ? 'bg-amber-950 text-amber-300 border border-amber-800/60' : 'bg-amber-100 text-amber-900'
+                }`}
+              >
+                Estudio
+              </span>
+            </div>
+            <span className={`text-[10px] block -mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
+              Lectura bíblica & análisis colaborativo
             </span>
           </div>
-          <span className={`text-[10px] hidden sm:block -mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-            Lectura bíblica & análisis colaborativo
-          </span>
         </div>
       </div>
 
-      {/* Selector Central de Estudio Activo */}
+      {/* Selector Central de Estudio Activo (Clic abre el menú lateral izquierdo) */}
       <div className="hidden md:flex items-center">
         <button
-          onClick={() => setIsStudyModalOpen(true)}
+          onClick={() => setIsStudiesDrawerOpen(true)}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors shadow-2xs max-w-sm ${
             isDark
               ? 'border-slate-700 bg-slate-900/90 hover:bg-slate-800 text-slate-200'
               : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-slate-800'
           }`}
-          title="Cambiar o crear estudio temático"
+          title="Ver o cambiar estudio bíblico actual"
         >
-          <span className={`font-normal ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Estudio:</span>
+          <span className={`font-normal ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>Estudio en curso:</span>
           <span className={`truncate max-w-[200px] font-bold ${isDark ? 'text-amber-400' : 'text-indigo-900'}`}>
             {activeStudy?.title || 'Seleccionar Estudio'}
           </span>
@@ -222,8 +259,8 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Modal de lista de estudios */}
-      <StudyListModal isOpen={isStudyModalOpen} onClose={() => setIsStudyModalOpen(false)} />
+      {/* Menú Lateral Izquierdo de Estudios Bíblicos */}
+      <StudySidebarDrawer isOpen={isStudiesDrawerOpen} onClose={() => setIsStudiesDrawerOpen(false)} />
     </header>
   );
 };
