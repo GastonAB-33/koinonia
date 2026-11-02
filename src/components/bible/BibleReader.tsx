@@ -110,6 +110,84 @@ export const BibleReader: React.FC = () => {
   const isSyncingTop = React.useRef(false);
   const isSyncingBottom = React.useRef(false);
 
+  // Sincronización precisa basada en versículos (alineación versículo a versículo)
+  const syncScrollByVerse = (
+    sourceEl: HTMLDivElement,
+    targetEl: HTMLDivElement,
+    targetFlag: React.MutableRefObject<boolean>
+  ) => {
+    // Si está en el tope superior
+    if (sourceEl.scrollTop <= 4) {
+      targetFlag.current = true;
+      targetEl.scrollTop = 0;
+      return;
+    }
+
+    const sourceMax = sourceEl.scrollHeight - sourceEl.clientHeight;
+    // Si está en el tope inferior
+    if (sourceMax > 0 && sourceEl.scrollTop >= sourceMax - 4) {
+      targetFlag.current = true;
+      targetEl.scrollTop = targetEl.scrollHeight - targetEl.clientHeight;
+      return;
+    }
+
+    const sourceRect = sourceEl.getBoundingClientRect();
+    const sourcePaddingTop = parseFloat(window.getComputedStyle(sourceEl).paddingTop) || 14;
+    const refTop = sourceRect.top + sourcePaddingTop;
+
+    const sourceVerses = sourceEl.querySelectorAll<HTMLElement>('[data-verse-num]');
+    if (!sourceVerses.length) return;
+
+    let currentVerseNum = 1;
+    let progressInVerse = 0;
+    let matched = false;
+
+    // Localizar qué versículo encabeza la vista actual en sourceEl
+    for (let i = 0; i < sourceVerses.length; i++) {
+      const el = sourceVerses[i];
+      const rect = el.getBoundingClientRect();
+      if (rect.bottom >= refTop) {
+        currentVerseNum = parseInt(el.getAttribute('data-verse-num') || '1', 10);
+        const h = rect.height;
+        if (h > 0) {
+          progressInVerse = Math.max(0, Math.min(1, (refTop - rect.top) / h));
+        }
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched && sourceVerses.length > 0) {
+      const last = sourceVerses[sourceVerses.length - 1];
+      currentVerseNum = parseInt(last.getAttribute('data-verse-num') || '1', 10);
+    }
+
+    // Buscar exactamente el mismo versículo en el contenedor targetEl
+    const targetVerseEl = targetEl.querySelector<HTMLElement>(`[data-verse-num="${currentVerseNum}"]`);
+    if (!targetVerseEl) {
+      // Fallback proporcional si el versículo no existe en la otra traducción
+      const targetMax = targetEl.scrollHeight - targetEl.clientHeight;
+      if (sourceMax > 0 && targetMax > 0) {
+        targetFlag.current = true;
+        targetEl.scrollTop = (sourceEl.scrollTop / sourceMax) * targetMax;
+      }
+      return;
+    }
+
+    const targetVerseRect = targetVerseEl.getBoundingClientRect();
+    const targetContainerRect = targetEl.getBoundingClientRect();
+    const targetPaddingTop = parseFloat(window.getComputedStyle(targetEl).paddingTop) || 14;
+
+    const currentOffsetFromContainer = targetVerseRect.top - targetContainerRect.top;
+    const desiredOffsetFromContainer = targetPaddingTop - progressInVerse * targetVerseRect.height;
+    const delta = currentOffsetFromContainer - desiredOffsetFromContainer;
+
+    if (Math.abs(delta) > 0.5) {
+      targetFlag.current = true;
+      targetEl.scrollTop += delta;
+    }
+  };
+
   // Sincronizar scroll desde la mitad superior a la inferior
   const handleTopScroll = () => {
     if (selectedPhraseData) setSelectedPhraseData(null);
@@ -121,13 +199,7 @@ export const BibleReader: React.FC = () => {
     const bottomEl = bottomScrollRef.current;
     if (!topEl || !bottomEl) return;
 
-    const topMax = topEl.scrollHeight - topEl.clientHeight;
-    const bottomMax = bottomEl.scrollHeight - bottomEl.clientHeight;
-    if (topMax <= 0 || bottomMax <= 0) return;
-
-    const ratio = topEl.scrollTop / topMax;
-    isSyncingBottom.current = true;
-    bottomEl.scrollTop = ratio * bottomMax;
+    syncScrollByVerse(topEl, bottomEl, isSyncingBottom);
   };
 
   // Sincronizar scroll desde la mitad inferior a la superior
@@ -141,14 +213,35 @@ export const BibleReader: React.FC = () => {
     const bottomEl = bottomScrollRef.current;
     if (!topEl || !bottomEl) return;
 
-    const topMax = topEl.scrollHeight - topEl.clientHeight;
-    const bottomMax = bottomEl.scrollHeight - bottomEl.clientHeight;
-    if (topMax <= 0 || bottomMax <= 0) return;
-
-    const ratio = bottomEl.scrollTop / bottomMax;
-    isSyncingTop.current = true;
-    topEl.scrollTop = ratio * topMax;
+    syncScrollByVerse(bottomEl, topEl, isSyncingTop);
   };
+
+  // Reiniciar scroll a 0 al cambiar de libro o capítulo
+  useEffect(() => {
+    if (topScrollRef.current) topScrollRef.current.scrollTop = 0;
+    if (bottomScrollRef.current) bottomScrollRef.current.scrollTop = 0;
+  }, [chapterData?.bookId, chapterData?.chapter, currentVersion, parallelVersion]);
+
+  // Si hay un versículo objetivo (ej. seleccionado del selector), alinear ambas versiones en él
+  const { targetVerseNum } = useBibleStore();
+  useEffect(() => {
+    if (targetVerseNum) {
+      setTimeout(() => {
+        const topVerseEl = topScrollRef.current?.querySelector<HTMLElement>(`[data-verse-num="${targetVerseNum}"]`);
+        const botVerseEl = bottomScrollRef.current?.querySelector<HTMLElement>(`[data-verse-num="${targetVerseNum}"]`);
+        if (topVerseEl && topScrollRef.current) {
+          const topContainerRect = topScrollRef.current.getBoundingClientRect();
+          const rect = topVerseEl.getBoundingClientRect();
+          topScrollRef.current.scrollTop += (rect.top - topContainerRect.top - 14);
+        }
+        if (botVerseEl && bottomScrollRef.current) {
+          const botContainerRect = bottomScrollRef.current.getBoundingClientRect();
+          const rect = botVerseEl.getBoundingClientRect();
+          bottomScrollRef.current.scrollTop += (rect.top - botContainerRect.top - 14);
+        }
+      }, 100);
+    }
+  }, [targetVerseNum, chapterData?.bookId, chapterData?.chapter]);
 
   // Cerrar el menú flotante cuando el usuario hace scroll en el texto
   const handleScroll = () => {
