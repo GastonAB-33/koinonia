@@ -3,8 +3,9 @@ import { IAIService } from './aiService';
 import { MockAIService } from './mockAIService';
 
 const STORAGE_KEY = 'koinonia_gemini_api_key';
-const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
-const FALLBACK_MODEL = 'gemini-3.8-flash';
+const PRIMARY_MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-2.0-flash';
+const LEGACY_MODEL = 'gemini-1.5-flash';
 
 /**
  * Obtiene la API Key configurada por el usuario (en localStorage o variable de entorno de Vite)
@@ -47,35 +48,41 @@ export class GeminiAIService implements IAIService {
       return { success: false, message: 'No se ha proporcionado ninguna API Key.' };
     }
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${PRIMARY_MODEL}:generateContent?key=${key}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: 'Responde {"status":"OK"} en formato JSON' }]
+    const models = [PRIMARY_MODEL, FALLBACK_MODEL, LEGACY_MODEL];
+    let lastError = '';
+
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: 'Responde {"status":"OK"} en formato JSON' }]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json'
             }
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: 'application/json'
-          }
-        })
-      });
+          })
+        });
 
-      if (!response.ok) {
+        if (response.ok) {
+          return { success: true, message: `¡Conexión exitosa con Google Gemini AI (${model})!` };
+        }
+
         const errorData = await response.json().catch(() => ({}));
-        const errMsg = errorData?.error?.message || `Error HTTP ${response.status}: ${response.statusText}`;
-        return { success: false, message: errMsg };
+        lastError = errorData?.error?.message || `Error HTTP ${response.status}: ${response.statusText}`;
+      } catch (err: any) {
+        lastError = err?.message || 'Error de red al conectar con Gemini.';
       }
-
-      return { success: true, message: '¡Conexión exitosa con Google Gemini AI (gemini-3.5-flash)!' };
-    } catch (err: any) {
-      return { success: false, message: err?.message || 'Error de red al conectar con Gemini.' };
     }
+
+    return { success: false, message: lastError || 'No se pudo conectar con Gemini.' };
   }
 
   async analyzeOriginalLanguage(verseRef: string, wordOrPhrase: string): Promise<LexiconAnalysis> {
@@ -145,7 +152,12 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
         parsed = await tryCallModel(PRIMARY_MODEL);
       } catch (primaryErr) {
         console.warn(`[GeminiAIService] Falló ${PRIMARY_MODEL}, reintentando con ${FALLBACK_MODEL}:`, primaryErr);
-        parsed = await tryCallModel(FALLBACK_MODEL);
+        try {
+          parsed = await tryCallModel(FALLBACK_MODEL);
+        } catch (fallbackErr) {
+          console.warn(`[GeminiAIService] Falló ${FALLBACK_MODEL}, reintentando con ${LEGACY_MODEL}:`, fallbackErr);
+          parsed = await tryCallModel(LEGACY_MODEL);
+        }
       }
 
       const langLower = String(parsed.language || '').toLowerCase();

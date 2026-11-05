@@ -243,11 +243,14 @@ export const BibleReader: React.FC = () => {
     }
   }, [targetVerseNum, chapterData?.bookId, chapterData?.chapter]);
 
-  // Cerrar el menú flotante cuando el usuario hace scroll en el texto
-  const handleScroll = () => {
-    if (selectedPhraseData) {
+  // Cerrar el menú flotante cuando el usuario hace scroll deliberado en el texto (>20px)
+  const lastScrollTopRef = React.useRef(0);
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const currentTop = e.currentTarget.scrollTop;
+    if (selectedPhraseData && Math.abs(currentTop - lastScrollTopRef.current) > 20) {
       setSelectedPhraseData(null);
     }
+    lastScrollTopRef.current = currentTop;
   };
 
   return (

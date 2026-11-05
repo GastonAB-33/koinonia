@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { BibleVerse, HighlightColor } from '../../types/bible';
 import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useLexiconStore } from '../../store/useLexiconStore';
 import { VerseActionMenu } from './VerseActionMenu';
 
 interface VerseItemProps {
@@ -29,8 +30,12 @@ const DARK_FLUOR_COLOR_MAP: Record<HighlightColor, string> = {
 export const VerseItem: React.FC<VerseItemProps> = ({ verse }) => {
   const [showMenu, setShowMenu] = useState(false);
   const containerRef = useRef<HTMLSpanElement>(null);
-  const { highlights, currentBookId, currentChapterNum, currentVersion, targetVerseNum } = useBibleStore();
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTapRef = useRef<{ time: number; word: string }>({ time: 0, word: '' });
+
+  const { highlights, currentBookId, currentChapterNum, currentVersion, targetVerseNum, books } = useBibleStore();
   const { currentTheme } = useThemeStore();
+  const { openLexicon } = useLexiconStore();
 
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
 
@@ -68,10 +73,103 @@ export const VerseItem: React.FC<VerseItemProps> = ({ verse }) => {
     };
   }, [showMenu]);
 
+  // Limpiar temporizador pendiente al desmontar
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+      }
+    };
+  }, []);
+
+  const triggerLexicon = (rawWord: string) => {
+    const clean = rawWord.replace(/^[«“"'\s.,;:!?¿¡()[\]{}—\-]+|[»”"'\s.,;:!?¿¡()[\]{}—\-]+$/g, '').trim();
+    if (!clean) return;
+
+    const book = books.find((b) => b.id.toUpperCase() === verse.bookId.toUpperCase());
+    const bookName = book ? book.name : verse.bookId;
+    const verseRef = `${bookName} ${verse.chapter}:${verse.verse}`;
+
+    // Disparar apertura del léxico
+    openLexicon(verseRef, clean);
+  };
+
+  // Manejar interacción en palabra: toque simple abre menú de versículo, doble toque abre léxico
+  const handleWordClick = (e: React.MouseEvent, tokenWord: string) => {
+    e.stopPropagation();
+
+    // Si el usuario está seleccionando texto para copiar/enviar a estudio, no interferir
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim().length > 1) {
+      return;
+    }
+
+    const cleanWord = tokenWord.replace(/^[«“"'\s.,;:!?¿¡()[\]{}—\-]+|[»”"'\s.,;:!?¿¡()[\]{}—\-]+$/g, '').trim();
+    if (!cleanWord) return;
+
+    const now = Date.now();
+    const timeSinceLast = now - lastTapRef.current.time;
+    const isSameWord = lastTapRef.current.word === cleanWord;
+
+    // DETECCIÓN DE DOBLE TOQUE (DOBLE TAP): Ocurre dentro de 380ms en la misma palabra
+    if (isSameWord && timeSinceLast > 0 && timeSinceLast < 380) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
+      lastTapRef.current = { time: 0, word: '' };
+
+      // Limpiar selección nativa que pueda haber provocado el doble toque en el navegador
+      window.getSelection()?.removeAllRanges();
+
+      // Abrir Léxico directamente con la palabra seleccionada
+      triggerLexicon(cleanWord);
+      return;
+    }
+
+    // PRIMER TOQUE: Registrar tiempo y esperar 260ms antes de abrir el menú de versículo
+    lastTapRef.current = { time: now, word: cleanWord };
+
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current);
+    }
+
+    singleTapTimerRef.current = setTimeout(() => {
+      const currentSel = window.getSelection();
+      if (currentSel && currentSel.toString().trim().length > 1) {
+        return;
+      }
+      setShowMenu((prev) => !prev);
+      singleTapTimerRef.current = null;
+    }, 260);
+  };
+
+  // Doble clic nativo en desktop
+  const handleWordDoubleClick = (e: React.MouseEvent, tokenWord: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (singleTapTimerRef.current) {
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+    }
+    lastTapRef.current = { time: 0, word: '' };
+    window.getSelection()?.removeAllRanges();
+    triggerLexicon(tokenWord);
+  };
+
+  // Tokenizar el texto del versículo preservando espacios para separar palabras
+  const tokens = useMemo(() => {
+    return verse.text.split(/(\s+)/);
+  }, [verse.text]);
+
   return (
     <span
       ref={containerRef}
-      id={verse.version === currentVersion ? `verse-${verse.bookId}-${verse.chapter}-${verse.verse}` : `verse-${verse.version}-${verse.bookId}-${verse.chapter}-${verse.verse}`}
+      id={
+        verse.version === currentVersion
+          ? `verse-${verse.bookId}-${verse.chapter}-${verse.verse}`
+          : `verse-${verse.version}-${verse.bookId}-${verse.chapter}-${verse.verse}`
+      }
       data-verse-ref={`${verse.bookId}-${verse.chapter}-${verse.verse}`}
       data-verse-book={verse.bookId}
       data-verse-chapter={verse.chapter}
@@ -80,40 +178,51 @@ export const VerseItem: React.FC<VerseItemProps> = ({ verse }) => {
       className="relative inline-block leading-relaxed mr-1.5 my-0.5 group scroll-mt-28"
     >
       <span
-        onClick={() => {
-          // Si el usuario estaba seleccionando texto con el cursor, no abrir el menú de versículo completo
-          const sel = window.getSelection();
-          if (sel && sel.toString().trim().length > 0) {
-            return;
-          }
-          setShowMenu(!showMenu);
-        }}
         className={`cursor-pointer rounded px-1 py-0.5 transition-colors duration-150 inline ${highlightClass}`}
-        title={`Clic para opciones de ${verse.chapter}:${verse.verse}`}
+        title={`Doble toque en cualquier palabra para Léxico | Toque en el número para opciones de ${verse.chapter}:${verse.verse}`}
       >
-        {/* Número de versículo: Rojo brillante neón en modo oscuro */}
+        {/* Número de versículo: Clic directo abre/cierra las opciones del versículo */}
         <sup
-          className={`font-sans text-[11px] mr-1 select-none transition-all ${
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMenu((prev) => !prev);
+          }}
+          className={`font-sans text-[11px] mr-1 select-none transition-all cursor-pointer hover:scale-110 active:scale-95 inline-block ${
             isDark
               ? 'bible-verse-num text-[#ff3344] font-black drop-shadow-[0_0_6px_rgba(255,51,68,0.75)]'
-              : 'font-bold text-amber-700/80'
+              : 'font-bold text-amber-700/80 hover:text-amber-900'
           }`}
+          title={`Opciones del versículo ${verse.verse}`}
         >
           {verse.verse}
         </sup>
 
-        {/* Texto de las Escrituras: Blanco nítido en modo oscuro */}
+        {/* Texto de las Escrituras: Palabras interactivas con soporte de Doble Tap para Léxico */}
         <span
           className={`font-serif text-[18px] transition-colors ${
             isDark ? 'bible-verse-text text-white font-normal' : 'text-slate-800'
           }`}
         >
-          {verse.text}
+          {tokens.map((token, idx) => {
+            if (/^\s+$/.test(token)) {
+              return <React.Fragment key={idx}>{token}</React.Fragment>;
+            }
+            return (
+              <span
+                key={idx}
+                onClick={(e) => handleWordClick(e, token)}
+                onDoubleClick={(e) => handleWordDoubleClick(e, token)}
+                className="inline transition-colors active:opacity-70 select-text"
+              >
+                {token}
+              </span>
+            );
+          })}
         </span>
       </span>
 
       {showMenu && (
-        <div className="absolute top-full left-0 mt-1.5 z-40">
+        <div className="absolute top-full left-0 mt-1.5 z-50">
           <VerseActionMenu verse={verse} onClose={() => setShowMenu(false)} />
         </div>
       )}
