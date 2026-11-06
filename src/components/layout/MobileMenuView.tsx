@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { BibleSelectorModal } from '../bible/BibleSelectorModal';
@@ -10,7 +10,10 @@ import {
   Columns,
   Palette,
   CheckCircle2,
-  Clock
+  Clock,
+  Download,
+  Smartphone,
+  Share2
 } from 'lucide-react';
 
 interface MobileMenuViewProps {
@@ -29,6 +32,29 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
   } = useBibleStore();
   const { currentTheme, setTheme } = useThemeStore();
   const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else {
+      setShowInstallGuide((prev) => !prev);
+    }
+  };
 
   const currentBook = books.find((b) => b.id === currentBookId);
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
@@ -77,6 +103,62 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
 
       {/* Contenido del Menú */}
       <div className="p-4 space-y-4 max-w-lg mx-auto w-full pb-20">
+        {/* Tarjeta de Instalación PWA para Móvil */}
+        <div
+          className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
+            isDark
+              ? 'bg-gradient-to-br from-slate-900 to-indigo-950/40 border-indigo-900/60'
+              : 'bg-gradient-to-br from-white to-amber-50/50 border-amber-200/80'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xs">Instalar Koinonía en tu Celular</h3>
+                <p className="text-[11px] text-slate-400">Úsala a pantalla completa como una app nativa</p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleInstallClick}
+            className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>{deferredPrompt ? 'Instalar App Ahora' : '¿Cómo descargarla en tu cel?'}</span>
+          </button>
+
+          {showInstallGuide && !deferredPrompt && (
+            <div
+              className={`p-3 rounded-xl border text-xs space-y-2.5 animate-in fade-in duration-150 ${
+                isDark ? 'bg-slate-950/80 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}
+            >
+              <div className="space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-amber-500">
+                  <span>📱 En Android (Google Chrome):</span>
+                </p>
+                <p className="text-[11px] leading-relaxed pl-4">
+                  1. Toca los <strong>3 puntos (⋮)</strong> arriba a la derecha de Chrome.<br />
+                  2. Selecciona <strong>"Instalar aplicación"</strong> o <strong>"Agregar a la pantalla principal"</strong>.
+                </p>
+              </div>
+
+              <div className="space-y-1 pt-1.5 border-t border-slate-700/40">
+                <p className="font-bold flex items-center gap-1.5 text-blue-400">
+                  <span>🍎 En iPhone / iPad (Safari):</span>
+                </p>
+                <p className="text-[11px] leading-relaxed pl-4">
+                  1. Toca el botón <strong>Compartir</strong> (icono de cuadrado con flecha hacia arriba <Share2 className="w-3 h-3 inline" />).<br />
+                  2. Desliza hacia abajo y pulsa <strong>"Agregar al inicio"</strong>.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
         {/* Banner de En Desarrollo */}
         <div
           className={`p-3.5 rounded-2xl border flex items-start gap-3 shadow-xs ${
