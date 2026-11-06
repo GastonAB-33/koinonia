@@ -172,35 +172,35 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[160] flex flex-col justify-end sm:justify-center sm:items-center sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-150">
       <div
-        className={`w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden transition-all ${
+        className={`w-full h-[100dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl rounded-none sm:rounded-3xl border-0 sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
           isDark
-            ? 'bg-slate-900 border-slate-700 text-white shadow-black/90'
-            : 'bg-white border-slate-200 text-slate-800 shadow-2xl'
+            ? 'bg-slate-900 sm:border-slate-700 text-white shadow-black/90'
+            : 'bg-white sm:border-slate-200 text-slate-800 shadow-2xl'
         }`}
       >
         {/* Cabecera del Modal */}
         <div
-          className={`px-5 py-4 border-b flex items-center justify-between shrink-0 ${
+          className={`px-4 py-3 sm:px-6 sm:py-4 border-b flex items-center justify-between shrink-0 ${
             isDark
-              ? 'bg-slate-950/80 border-slate-800'
-              : 'bg-gradient-to-r from-amber-50/80 to-indigo-50/80 border-slate-200/80'
+              ? 'bg-slate-950/95 border-slate-800'
+              : 'bg-gradient-to-r from-amber-50/90 to-indigo-50/90 border-slate-200'
           }`}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center shadow-md shrink-0">
-              <Camera className="w-5 h-5" />
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center shadow-md shrink-0">
+              <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-sm sm:text-base">Transcribir Estudio con Cámara</h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-1">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="font-bold text-sm sm:text-base truncate">Transcribir con Cámara</h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-1 shrink-0">
                   <Sparkles className="w-2.5 h-2.5" />
-                  Gemini Flash
+                  Gemini 3.5 Flash
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-slate-400 truncate hidden sm:block">
                 Toma una foto de tus apuntes manuscritos o libro para digitalizarlos en texto
               </p>
             </div>
@@ -208,8 +208,8 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
 
           <button
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition-colors ${
-              isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+              isDark ? 'bg-slate-800/60 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
             title="Cerrar ventana"
           >
@@ -243,7 +243,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
         />
 
         {/* Contenido Principal con Scroll */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
           {/* Banner de estado de API Key */}
           <div
             className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-2 transition-all ${
@@ -310,9 +310,9 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
 
           {/* Pantalla 1: Selección de Imagen (si aún no se cargó ninguna) */}
           {!imagePreview && (
-            <div className="py-6 space-y-4">
+            <div className="py-4 sm:py-6 space-y-4">
               <div
-                className={`border-2 border-dashed rounded-3xl p-8 sm:p-12 text-center transition-all ${
+                className={`border-2 border-dashed rounded-3xl p-6 sm:p-10 text-center transition-all ${
                   isDark
                     ? 'border-slate-700 bg-slate-950/40 hover:border-amber-500/60'
                     : 'border-slate-300 bg-slate-50/70 hover:border-amber-500/60'
@@ -324,15 +324,15 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
                   if (f) handleFile(f);
                 }}
               >
-                <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-4 shadow-inner">
-                  <Camera className="w-8 h-8" />
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-inner">
+                  <Camera className="w-7 h-7 sm:w-8 sm:h-8" />
                 </div>
-                <h3 className="font-bold text-base mb-1">Elige cómo capturar tu estudio bíblico</h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
+                <h3 className="font-bold text-sm sm:text-base mb-1">Elige cómo capturar tu estudio bíblico</h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 sm:mb-6">
                   Toma una foto nítida de tu libreta, apuntes pastorales, hojas con letra a mano o pasajes de libros.
                 </p>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 max-w-md mx-auto">
                   {/* Botón para activar cámara directamente en teléfonos */}
                   <button
                     onClick={() => cameraInputRef.current?.click()}
@@ -362,26 +362,26 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
           {/* Pantalla 2: Imagen Cargada y Resultado de Transcripción */}
           {imagePreview && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
                 {/* Miniatura de la Foto */}
-                <div className="md:col-span-4 flex flex-col gap-2">
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-black/40 aspect-[3/4] max-h-64 md:max-h-none flex items-center justify-center">
+                <div className="flex sm:flex-col gap-2 items-center sm:items-stretch sm:w-44 shrink-0">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-black/50 w-24 h-24 sm:w-full sm:h-52 shrink-0 flex items-center justify-center">
                     <img
                       src={imagePreview}
                       alt="Captura del estudio bíblico"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover sm:object-contain"
                     />
                     {isProcessing && (
-                      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center gap-2 text-white p-4 text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-                        <span className="text-xs font-semibold">Gemini está analizando la imagen...</span>
+                      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex flex-col items-center justify-center gap-1 text-white p-2 text-center">
+                        <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                        <span className="text-[10px] font-semibold">Analizando...</span>
                       </div>
                     )}
                   </div>
 
                   <button
                     onClick={handleReset}
-                    className={`w-full py-1.5 px-3 rounded-xl border text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                    className={`flex-1 sm:flex-none py-2 px-2.5 rounded-xl border text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors ${
                       isDark
                         ? 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                         : 'border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100'
@@ -393,7 +393,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
                 </div>
 
                 {/* Área de Transcripción generada */}
-                <div className="md:col-span-8 flex flex-col gap-2">
+                <div className="flex-1 flex flex-col gap-2 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 text-amber-500" />
@@ -430,9 +430,9 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
                         ? 'Analizando caligrafía, versículos y contenido doctrinal...'
                         : 'El texto transcripto aparecerá aquí...'
                     }
-                    rows={10}
+                    rows={8}
                     disabled={isProcessing}
-                    className={`w-full p-3.5 rounded-2xl border text-xs sm:text-sm font-sans leading-relaxed focus:outline-none resize-none transition-colors ${
+                    className={`w-full min-h-[160px] sm:min-h-[200px] p-3 rounded-2xl border text-xs sm:text-sm font-sans leading-relaxed focus:outline-none resize-none transition-colors ${
                       isDark
                         ? 'bg-slate-950/60 border-slate-700 text-slate-100 focus:border-amber-400'
                         : 'bg-slate-50 border-slate-300 text-slate-800 focus:border-amber-500'
@@ -445,16 +445,16 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Barra de Acciones Inferior */}
-        {imagePreview && (
+        {imagePreview ? (
           <div
-            className={`px-5 py-3.5 border-t flex flex-wrap items-center justify-between gap-3 shrink-0 ${
-              isDark ? 'bg-slate-950/90 border-slate-800' : 'bg-slate-50 border-slate-200'
+            className={`px-4 py-3 sm:px-6 sm:py-3.5 border-t flex items-center justify-between gap-2 shrink-0 ${
+              isDark ? 'bg-slate-950/95 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}
           >
             <button
               onClick={handleCopy}
               disabled={!transcription || isProcessing}
-              className={`py-2 px-3.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer ${
+              className={`py-2 px-3 sm:px-3.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40 cursor-pointer ${
                 isDark
                   ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
                   : 'border-slate-300 bg-white hover:bg-slate-100 text-slate-700 shadow-xs'
@@ -468,7 +468,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Copiar Texto</span>
+                  <span>Copiar</span>
                 </>
               )}
             </button>
@@ -476,7 +476,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className={`py-2 px-3.5 rounded-xl border text-xs font-semibold transition-colors ${
+                className={`py-2 px-3 sm:px-3.5 rounded-xl border text-xs font-semibold transition-colors ${
                   isDark
                     ? 'border-slate-800 text-slate-400 hover:text-white'
                     : 'border-slate-200 text-slate-500 hover:text-slate-800'
@@ -488,21 +488,36 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
               <button
                 onClick={handleInsertIntoStudy}
                 disabled={!transcription || isProcessing || inserted}
-                className="py-2 px-5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-2 shadow-md disabled:opacity-40 transition-all cursor-pointer"
+                className="py-2 px-3.5 sm:px-5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-md disabled:opacity-40 transition-all cursor-pointer"
               >
                 {inserted ? (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>¡Insertado en el Estudio!</span>
+                    <span>¡Insertado!</span>
                   </>
                 ) : (
                   <>
                     <FileText className="w-4 h-4" />
-                    <span>Insertar en el Estudio</span>
+                    <span>Insertar en Estudio</span>
                   </>
                 )}
               </button>
             </div>
+          </div>
+        ) : (
+          <div
+            className={`px-4 py-2.5 sm:hidden border-t flex items-center justify-end shrink-0 ${
+              isDark ? 'bg-slate-950/95 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}
+          >
+            <button
+              onClick={onClose}
+              className={`w-full py-2 rounded-xl border text-xs font-semibold text-center transition-colors ${
+                isDark ? 'border-slate-800 text-slate-400 hover:text-white' : 'border-slate-200 text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Cerrar
+            </button>
           </div>
         )}
       </div>

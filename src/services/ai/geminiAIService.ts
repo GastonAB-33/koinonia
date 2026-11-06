@@ -3,9 +3,9 @@ import { IAIService } from './aiService';
 import { MockAIService } from './mockAIService';
 
 const STORAGE_KEY = 'koinonia_gemini_api_key';
-const PRIMARY_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.0-flash';
-const LEGACY_MODEL = 'gemini-1.5-flash';
+const PRIMARY_MODEL = 'gemini-3.5-flash';
+const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const LEGACY_MODEL = 'gemini-3-flash-preview';
 
 /**
  * Obtiene la API Key configurada por el usuario (en localStorage o variable de entorno de Vite)
