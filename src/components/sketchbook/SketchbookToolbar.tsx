@@ -25,8 +25,10 @@ import {
   Type,
   LayoutGrid,
   Palette,
-  Check
+  Check,
+  Camera
 } from 'lucide-react';
+import { StudyCameraModal } from '../study/StudyCameraModal';
 
 const LIGHT_SKETCH_COLORS = [
   { id: '#88804B', label: 'Verde Musgo', bg: 'bg-[#88804B]' },
@@ -79,6 +81,7 @@ export const SketchbookToolbar: React.FC = () => {
   const colors = isDark ? DARK_SKETCH_COLORS : LIGHT_SKETCH_COLORS;
 
   const [isColorDropdownOpen, setIsColorDropdownOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const colorDropdownRef = useRef<HTMLDivElement>(null);
 
   // Cerrar desplegable al hacer clic fuera
@@ -329,6 +332,19 @@ export const SketchbookToolbar: React.FC = () => {
             <Plus className={`w-3 h-3 ${isDark ? 'text-amber-400' : 'text-[#88804B]'}`} />
             <span>Texto</span>
           </button>
+
+          <button
+            onClick={() => setIsCameraModalOpen(true)}
+            className={`flex items-center gap-1 px-2.5 py-1 font-semibold rounded-lg shadow-2xs transition-colors border ${
+              isDark
+                ? 'bg-amber-950/70 hover:bg-amber-900 border-amber-800 text-amber-300'
+                : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
+            }`}
+            title="Escanear notas físicas o capturar foto con la cámara"
+          >
+            <Camera className="w-3 h-3 text-amber-500" />
+            <span>Escanear</span>
+          </button>
         </div>
 
         {/* Grupo de Herramientas y Acciones de Historial */}
@@ -493,6 +509,9 @@ export const SketchbookToolbar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Transcripción con Cámara */}
+      <StudyCameraModal isOpen={isCameraModalOpen} onClose={() => setIsCameraModalOpen(false)} />
     </div>
   );
 };

@@ -6,28 +6,26 @@ import { BIBLE_BOOKS, MOCK_CHAPTERS } from './mockBibleData';
  * Cache en memoria para almacenar capítulos completos consultados
  */
 const chaptersCache: Map<string, BibleChapter> = new Map();
+const booksDataCache: Map<string, any> = new Map();
 
 /**
  * Mapeo de versiones del sistema a identificadores de traducción de la API bolls.life
  */
 const BOLLS_TRANSLATION_MAP: Record<BibleVersion, string> = {
   RVR1960: 'RV1960',
+  RVR1909: 'RV1909',
   LBLA: 'LBLA',
   NVI: 'NTV', // NTV (Nueva Traducción Viviente) ofrece lenguaje contemporáneo de alta fidelidad
   DHH: 'PDT'  // PDT (Palabra de Dios para Todos) para lenguaje sencillo y dinámico
 };
 
 /**
- * BibleService híbrido de alta disponibilidad:
- * 1. Prioriza datos mock enriquecidos (Génesis 1, Juan 1, Romanos 8).
- * 2. Consulta la API pública y abierta de bolls.life para capítulos completos
- *    de todo el Antiguo y Nuevo Testamento (66 libros canónicos).
- * 3. En caso de fallo de red o modo offline, genera versículos estructurados de respaldo.
+ * BibleService de alta disponibilidad:
+ * 1. Prioriza los módulos locales offline en /data/bibles/{VERSION}/{BOOK}.json (66 libros completos con Strong).
+ * 2. Soporta fallback a datos mock y la API abierta de bolls.life.
  */
 export class MockBibleService implements IBibleService {
   async getBooks(): Promise<BibleBook[]> {
-    // Simula una pequeña latencia realista
-    await new Promise((resolve) => setTimeout(resolve, 60));
     return BIBLE_BOOKS;
   }
 
@@ -37,8 +35,38 @@ export class MockBibleService implements IBibleService {
       return chaptersCache.get(cacheKey)!;
     }
 
+    // 1. Carga prioritaria desde archivos locales en /data/bibles/
+    const localVersion = version === 'DHH' ? 'RVR1960' : version;
+    const bookCacheKey = `${localVersion}_${bookId.toUpperCase()}`;
+    let bookPayload = booksDataCache.get(bookCacheKey);
+
+    if (!bookPayload && typeof window !== 'undefined') {
+      try {
+        const res = await fetch(`/data/bibles/${localVersion}/${bookId.toUpperCase()}.json`);
+        if (res.ok) {
+          bookPayload = await res.json();
+          booksDataCache.set(bookCacheKey, bookPayload);
+        }
+      } catch (err) {
+        // Fallback silencioso si no se encuentra el archivo local
+      }
+    }
+
+    if (bookPayload && bookPayload.chapters && bookPayload.chapters[chapter.toString()]) {
+      const verses: BibleVerse[] = bookPayload.chapters[chapter.toString()];
+      const localChapter: BibleChapter = {
+        bookId: bookPayload.bookId,
+        bookName: bookPayload.bookName,
+        chapter,
+        version,
+        verses
+      };
+      chaptersCache.set(cacheKey, localChapter);
+      return localChapter;
+    }
+
     const mockKey = `${bookId.toUpperCase()}_${chapter}`;
-    const chapterData = MOCK_CHAPTERS[mockKey]?.[version];
+    const chapterData = MOCK_CHAPTERS[mockKey]?.[version as keyof typeof MOCK_CHAPTERS[typeof mockKey]];
 
     if (chapterData) {
       chaptersCache.set(cacheKey, chapterData);

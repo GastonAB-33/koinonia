@@ -7,9 +7,10 @@ import { BibleSelectorModal } from './BibleSelectorModal';
 
 const VERSIONS: { id: BibleVersion; label: string; name: string }[] = [
   { id: 'RVR1960', label: 'RVR 1960', name: 'Reina-Valera 1960' },
+  { id: 'RVR1909', label: 'RVR+ (Strong)', name: 'Reina-Valera 1909 (Con Strong)' },
+  { id: 'LBLA', label: 'LBLA (Strong)', name: 'La Biblia de las Américas' },
   { id: 'NVI', label: 'NVI', name: 'Nueva Versión Internacional' },
   { id: 'DHH', label: 'DHH', name: 'Dios Habla Hoy' },
-  { id: 'LBLA', label: 'LBLA', name: 'La Biblia de las Américas' },
 ];
 
 export const BibleNavigation: React.FC = () => {

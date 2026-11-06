@@ -178,9 +178,8 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
         crossReferences: Array.isArray(parsed.crossReferences) ? parsed.crossReferences : [verseRef]
       };
     } catch (error: any) {
-      console.warn('[GeminiAIService] Falló la llamada a Gemini, recurriendo a Mock:', error);
+      console.warn('[GeminiAIService] Falló la llamada a Gemini, recurriendo a Concordancia Strong local:', error);
       const fallback = await this.mockFallback.analyzeOriginalLanguage(verseRef, wordOrPhrase);
-      fallback.theologicalContext += ` (Nota: Consulta generada con datos de respaldo debido a: ${error.message})`;
       return fallback;
     }
   }
@@ -221,6 +220,94 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
       return JSON.parse(cleanJson);
     } catch {
       return this.mockFallback.suggestCrossReferences(topicOrVerse);
+    }
+  }
+
+  async transcribeStudyImage(
+    base64Data: string,
+    mimeType: string = 'image/jpeg',
+    customPrompt?: string
+  ): Promise<string> {
+    const apiKey = getGeminiApiKey();
+
+    if (!apiKey) {
+      console.info('[GeminiAIService] Sin API Key configurada. Usando Mock.');
+      return this.mockFallback.transcribeStudyImage(base64Data, mimeType, customPrompt);
+    }
+
+    const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
+
+    const promptText =
+      customPrompt ||
+      `Actúa como un erudito bíblico y transcriptor exegético profesional.
+Analiza con máxima precisión la imagen adjunta, que contiene notas manuscritas, apuntes de un cuaderno de estudio bíblico, bosquejos pastorales o páginas de comentarios/Escrituras.
+
+INSTRUCCIONES CLAVE:
+1. Transcribe con fidelidad todo el contenido visible. Si hay letra cursiva o difícil, deduce el término bíblico/teológico correcto por el contexto.
+2. Identifica y conserva con exactitud versículos citados (ej. "Ro 8:28", "Jn 1:1").
+3. Si aparecen términos o palabras en griego o hebreo (o sus transliteraciones), transcríbelas con esmero.
+4. Organiza la salida en Markdown enriquecido y ordenado:
+   - Usa encabezados (# Título principal, ## Secciones, ### Subpuntos).
+   - Usa listas numeradas o con viñetas para las divisiones del estudio.
+   - Usa bloques de cita (> «...») para pasajes bíblicos.
+   - Usa negritas (*término*) para conceptos centrales.
+5. NO agregues saludos ni comentarios explicativos como "Aquí tienes la transcripción", entrega directamente el texto formateado del estudio bíblico listo para ser leído y editado.`;
+
+    const tryCallVision = async (model: string) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType || 'image/jpeg',
+                    data: cleanBase64
+                  }
+                },
+                {
+                  text: promptText
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.15
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.error?.message || `Error ${response.status} de Gemini (${model})`);
+      }
+
+      const data = await response.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error('Gemini no devolvió texto de la imagen.');
+      return rawText.trim();
+    };
+
+    try {
+      try {
+        return await tryCallVision(PRIMARY_MODEL);
+      } catch (err1) {
+        console.warn(`[GeminiAIService] Falló visión con ${PRIMARY_MODEL}, reintentando con ${FALLBACK_MODEL}:`, err1);
+        try {
+          return await tryCallVision(FALLBACK_MODEL);
+        } catch (err2) {
+          console.warn(`[GeminiAIService] Falló visión con ${FALLBACK_MODEL}, reintentando con ${LEGACY_MODEL}:`, err2);
+          return await tryCallVision(LEGACY_MODEL);
+        }
+      }
+    } catch (finalErr: any) {
+      console.warn('[GeminiAIService] Falló la llamada de visión a Gemini, recurriendo a Mock:', finalErr);
+      const fallback = await this.mockFallback.transcribeStudyImage(base64Data, mimeType, customPrompt);
+      return `${fallback}\n\n*(Nota de respaldo: Transcripción simulada generada porque falló la conexión con la clave de IA: ${finalErr.message})*`;
     }
   }
 }

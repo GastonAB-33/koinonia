@@ -90,8 +90,22 @@ export const VerseItem: React.FC<VerseItemProps> = ({ verse }) => {
     const bookName = book ? book.name : verse.bookId;
     const verseRef = `${bookName} ${verse.chapter}:${verse.verse}`;
 
+    let target = clean;
+    if (verse.strongTokens && verse.strongTokens.length > 0) {
+      const match = verse.strongTokens.find(
+        (t) =>
+          t.word.toLowerCase() === clean.toLowerCase() ||
+          clean.toLowerCase().includes(t.word.toLowerCase()) ||
+          t.word.toLowerCase().includes(clean.toLowerCase())
+      );
+      if (match) {
+        const prefix = verse.originalLanguage === 'greek' ? 'G' : 'H';
+        target = `${prefix}${match.strong}`;
+      }
+    }
+
     // Disparar apertura del léxico
-    openLexicon(verseRef, clean);
+    openLexicon(verseRef, target);
   };
 
   // Manejar interacción en palabra: toque simple abre menú de versículo, doble toque abre léxico

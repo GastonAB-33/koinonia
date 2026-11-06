@@ -43,6 +43,7 @@ export const LexiconDrawer: React.FC = () => {
 
   const [copiedStrong, setCopiedStrong] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const [activeMode, setActiveMode] = useState<'strong' | 'gemini'>('strong');
   const [searchQuery, setSearchQuery] = useState('');
   const [inputApiKey, setInputApiKey] = useState(() => getGeminiApiKey());
   const [testStatus, setTestStatus] = useState<{ testing: boolean; message: string | null; success?: boolean }>({
@@ -133,11 +134,11 @@ export const LexiconDrawer: React.FC = () => {
               {hasApiKey ? (
                 <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Google Gemini 2.5 Flash
+                  Concordancia Strong + Gemini IA
                 </span>
               ) : (
-                <span className={`text-[11px] font-semibold ${isDark ? 'text-amber-400' : 'text-amber-600'} flex items-center gap-1`}>
-                  ⚡ Modo Simulado (Mock)
+                <span className={`text-[11px] font-semibold ${isDark ? 'text-purple-300' : 'text-purple-700'} flex items-center gap-1`}>
+                  📖 Concordancia Strong (100% Offline)
                 </span>
               )}
             </div>
@@ -335,13 +336,52 @@ export const LexiconDrawer: React.FC = () => {
           </button>
         </div>
 
+        {/* Pestañas de Selección: e-Sword Directo vs Gemini IA */}
+        <div
+          className={`grid grid-cols-2 p-1 rounded-2xl border transition-colors ${
+            isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-100 border-slate-200'
+          }`}
+        >
+          <button
+            onClick={() => setActiveMode('strong')}
+            className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              activeMode === 'strong'
+                ? isDark
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'bg-white text-purple-900 shadow-sm border border-purple-200'
+                : isDark
+                ? 'text-slate-400 hover:text-white'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Traducción e-Sword</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMode('gemini')}
+            className={`py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              activeMode === 'gemini'
+                ? isDark
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'bg-white text-purple-900 shadow-sm border border-purple-200'
+                : isDark
+                ? 'text-slate-400 hover:text-white'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+            <span className="truncate">Explicación Gemini</span>
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="h-64 flex flex-col items-center justify-center gap-3 text-slate-400">
             <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
             <p className={`text-xs font-medium text-center ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-              {hasApiKey
+              {activeMode === 'gemini' && hasApiKey
                 ? 'Google Gemini está analizando el término en lengua original y contexto histórico...'
-                : 'Consultando base léxica simulada...'}
+                : 'Consultando léxico en idioma original...'}
             </p>
           </div>
         ) : !analysis ? (
@@ -408,94 +448,136 @@ export const LexiconDrawer: React.FC = () => {
               </div>
             </div>
 
-            {/* Ficha Morfológica y Raíz */}
-            <div
-              className={`space-y-3 border rounded-2xl p-4 text-xs ${
-                isDark ? 'bg-slate-800/70 border-slate-700/80 text-white' : 'bg-slate-50 border-slate-200/80 text-slate-700'
-              }`}
-            >
-              <div className="flex items-start gap-2">
-                <Layers className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className={`font-semibold block ${isDark ? 'text-purple-300' : 'text-slate-700'}`}>
-                    Morfología Gramatical:
-                  </span>
-                  <span className={isDark ? 'text-slate-200' : 'text-slate-600'}>
-                    {analysis.morphology}
-                  </span>
+            {/* VISTA 1: TRADUCCIÓN DIRECTA DE E-SWORD / STRONG */}
+            {activeMode === 'strong' && (
+              <div className="space-y-4">
+                {/* Definición Literal en Español */}
+                <div className="space-y-1.5">
+                  <h4 className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${isDark ? 'text-purple-300' : 'text-purple-900'}`}>
+                    <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+                    Significado y Traducción Literal (Español)
+                  </h4>
+                  <div
+                    className={`text-sm leading-relaxed border p-3.5 rounded-2xl shadow-xs font-semibold ${
+                      isDark
+                        ? 'bg-slate-800/90 border-purple-900/60 text-emerald-300'
+                        : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                    }`}
+                  >
+                    « {analysis.definition} »
+                  </div>
                 </div>
-              </div>
 
-              <div className={`flex items-start gap-2 pt-2 border-t ${isDark ? 'border-slate-700' : 'border-slate-200/60'}`}>
-                <BookOpen className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className={`font-semibold block ${isDark ? 'text-purple-300' : 'text-slate-700'}`}>
-                    Palabra Raíz:
-                  </span>
-                  <span className={`font-serif font-medium ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
-                    {analysis.rootWord}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Definición */}
-            <div className="space-y-1.5">
-              <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Definición y Rango Semántico
-              </h4>
-              <p
-                className={`text-xs leading-relaxed border p-3 rounded-xl shadow-xs ${
-                  isDark
-                    ? 'bg-slate-800/70 border-slate-700 text-white'
-                    : 'bg-white border-slate-200 text-slate-700'
-                }`}
-              >
-                {analysis.definition}
-              </p>
-            </div>
-
-            {/* Contexto Teológico */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <h4
-                  className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                    isDark ? 'text-purple-300' : 'text-purple-900'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                  Comentario Teológico & Contexto Histórico
-                </h4>
-              </div>
-              <div
-                className={`p-3.5 border rounded-2xl text-xs leading-relaxed space-y-2 ${
-                  isDark
-                    ? 'bg-purple-950/40 border-purple-900/60 text-purple-100'
-                    : 'bg-purple-50/70 border-purple-200/90 text-slate-700'
-                }`}
-              >
-                <p>{analysis.theologicalContext}</p>
+                {/* Ficha Morfológica y Raíz */}
                 <div
-                  className={`text-[10px] font-medium italic pt-1 border-t flex items-center justify-between ${
-                    isDark ? 'text-purple-400 border-purple-800/60' : 'text-purple-600 border-purple-200/40'
+                  className={`space-y-3 border rounded-2xl p-4 text-xs ${
+                    isDark ? 'bg-slate-800/70 border-slate-700/80 text-white' : 'bg-slate-50 border-slate-200/80 text-slate-700'
                   }`}
                 >
-                  <span>
-                    {hasApiKey
-                      ? '✓ Análisis exegético generado en vivo por Google Gemini AI.'
-                      : '// Respuesta simulada de MockAIService.'}
-                  </span>
-                  {!hasApiKey && (
-                    <button
-                      onClick={() => setShowConfig(true)}
-                      className="underline font-bold hover:text-purple-500 cursor-pointer"
+                  <div className="flex items-start gap-2">
+                    <Layers className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className={`font-semibold block ${isDark ? 'text-purple-300' : 'text-slate-700'}`}>
+                        Morfología Gramatical:
+                      </span>
+                      <span className={isDark ? 'text-slate-200' : 'text-slate-600'}>
+                        {analysis.morphology}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className={`flex items-start gap-2 pt-2 border-t ${isDark ? 'border-slate-700' : 'border-slate-200/60'}`}>
+                    <BookOpen className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className={`font-semibold block ${isDark ? 'text-purple-300' : 'text-slate-700'}`}>
+                        Palabra Raíz o Lema:
+                      </span>
+                      <span className={`font-serif font-medium ${isDark ? 'text-slate-200' : 'text-slate-600'}`}>
+                        {analysis.rootWord}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contexto y Uso en las Escrituras */}
+                {analysis.theologicalContext && (
+                  <div className="space-y-1.5">
+                    <h4 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Uso Bíblico y Trasfondo
+                    </h4>
+                    <div
+                      className={`p-3.5 border rounded-2xl text-xs leading-relaxed space-y-2 whitespace-pre-line ${
+                        isDark ? 'bg-slate-800/60 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+                      }`}
                     >
-                      Conectar Gemini real →
+                      {analysis.theologicalContext}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* VISTA 2: EXPLICACIÓN TEOLÓGICA CON GEMINI IA */}
+            {activeMode === 'gemini' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4
+                    className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                      isDark ? 'text-purple-300' : 'text-purple-900'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    Exégesis Doctrinal con Inteligencia Artificial
+                  </h4>
+                  {hasApiKey && (
+                    <button
+                      onClick={reanalyze}
+                      disabled={isLoading}
+                      className="text-[11px] text-purple-500 hover:text-purple-600 font-bold underline"
+                    >
+                      Reanalizar
                     </button>
                   )}
                 </div>
+
+                {hasApiKey ? (
+                  <div
+                    className={`p-4 border rounded-2xl text-xs leading-relaxed space-y-3 ${
+                      isDark
+                        ? 'bg-purple-950/40 border-purple-900/60 text-purple-100'
+                        : 'bg-purple-50/70 border-purple-200/90 text-slate-700'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line">{analysis.theologicalContext}</p>
+                    <div className="pt-2 border-t border-purple-200/50 dark:border-purple-800/50 text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
+                      <span>✓ Análisis exegético de Google Gemini en español</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`p-5 border rounded-2xl text-center space-y-3 ${
+                      isDark ? 'bg-slate-800/80 border-purple-900/60' : 'bg-purple-50/50 border-purple-200'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-purple-600/20 text-purple-500 flex items-center justify-center mx-auto">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-sm">Explicación Teológica con Gemini</h5>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                        Conecta tu clave gratuita de Google Gemini para recibir explicaciones doctrinales, contexto pastoral y conexiones con Cristo.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowConfig(true)}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                    >
+                      Conectar Gemini Gratis
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Pasajes Cruzados */}
             {analysis.crossReferences.length > 0 && (

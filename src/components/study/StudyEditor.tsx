@@ -12,8 +12,10 @@ import {
   Check,
   Tag,
   X,
-  Trash2
+  Trash2,
+  Camera
 } from 'lucide-react';
+import { StudyCameraModal } from './StudyCameraModal';
 
 export const StudyEditor: React.FC = () => {
   const {
@@ -34,6 +36,7 @@ export const StudyEditor: React.FC = () => {
   const study = getActiveStudy();
   const [newTagInput, setNewTagInput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   if (!study) {
     return (
@@ -81,6 +84,19 @@ export const StudyEditor: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsCameraModalOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-sm ${
+              isDark
+                ? 'border-amber-500/50 bg-amber-950/60 hover:bg-amber-900/70 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                : 'border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900'
+            }`}
+            title="Escanear notas físicas o capturar foto con la cámara"
+          >
+            <Camera className="w-3.5 h-3.5 text-amber-500" />
+            <span>Escanear Notas</span>
+          </button>
+
           <button
             onClick={handleCopyMarkdown}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors shadow-sm ${
@@ -349,8 +365,26 @@ export const StudyEditor: React.FC = () => {
           >
             <HelpCircle className="w-3 h-3 text-purple-400" /> Pregunta de Reflexión
           </button>
+
+          <button
+            onClick={() => setIsCameraModalOpen(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              isDark
+                ? 'bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/80'
+                : 'bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300'
+            }`}
+            title="Escanear notas físicas o capturar foto con la cámara"
+          >
+            <Camera className="w-3 h-3 text-amber-500" /> Foto / Manuscrito
+          </button>
         </div>
       </div>
+
+      {/* Modal de Transcripción con Cámara */}
+      <StudyCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+      />
     </div>
   );
 };

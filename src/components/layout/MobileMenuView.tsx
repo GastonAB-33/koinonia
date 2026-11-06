@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { BibleSelectorModal } from '../bible/BibleSelectorModal';
+import { StudyCameraModal } from '../study/StudyCameraModal';
 import {
   BookOpen,
   Search,
@@ -13,7 +14,9 @@ import {
   Clock,
   Download,
   Smartphone,
-  Share2
+  Share2,
+  Camera,
+  Sparkles
 } from 'lucide-react';
 
 interface MobileMenuViewProps {
@@ -34,6 +37,7 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
   const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -158,6 +162,40 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
               </div>
             </div>
           )}
+        </div>
+
+        {/* Tarjeta de Escaneo con Cámara e IA */}
+        <div
+          className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
+            isDark
+              ? 'bg-gradient-to-br from-slate-900 to-amber-950/40 border-amber-900/60'
+              : 'bg-gradient-to-br from-white to-amber-50 border-amber-200/90'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-bold text-xs">Escanear Notas o Libros</h3>
+                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-0.5">
+                    <Sparkles className="w-2.5 h-2.5" /> IA Gemini
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400">Toma una foto a tus notas y digitalízalas al instante</p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsCameraModalOpen(true)}
+            className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+          >
+            <Camera className="w-4 h-4" />
+            <span>Abrir Cámara / Escáner</span>
+          </button>
         </div>
         {/* Banner de En Desarrollo */}
         <div
@@ -379,6 +417,12 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
       <BibleSelectorModal
         isOpen={isBookPickerOpen}
         onClose={() => setIsBookPickerOpen(false)}
+      />
+
+      {/* Modal de Transcripción con Cámara */}
+      <StudyCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
       />
     </div>
   );

@@ -10,9 +10,10 @@ import { Loader2, Link2 } from 'lucide-react';
 
 const VERSIONS: { id: BibleVersion; label: string }[] = [
   { id: 'RVR1960', label: 'RVR 1960' },
+  { id: 'RVR1909', label: 'RVR+ (Strong)' },
+  { id: 'LBLA', label: 'LBLA' },
   { id: 'NVI', label: 'NVI' },
   { id: 'DHH', label: 'DHH' },
-  { id: 'LBLA', label: 'LBLA' },
 ];
 
 export const BibleReader: React.FC = () => {

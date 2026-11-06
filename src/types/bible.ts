@@ -1,4 +1,9 @@
-export type BibleVersion = 'RVR1960' | 'NVI' | 'DHH' | 'LBLA';
+export type BibleVersion = 'RVR1960' | 'RVR1909' | 'NVI' | 'DHH' | 'LBLA';
+
+export interface StrongToken {
+  word: string;
+  strong: string;
+}
 
 export interface BibleVersionInfo {
   id: BibleVersion;
@@ -25,6 +30,7 @@ export interface BibleVerse {
   text: string;
   version: BibleVersion;
   originalLanguage?: 'hebrew' | 'greek' | 'aramaic';
+  strongTokens?: StrongToken[];
 }
 
 export interface BibleChapter {

@@ -80,7 +80,7 @@ export const BIBLE_BOOKS: BibleBook[] = [
   { id: 'REV', name: 'Apocalipsis', testament: 'NT', chaptersCount: 22, order: 66 },
 ];
 
-export const MOCK_CHAPTERS: Record<string, Record<BibleVersion, BibleChapter>> = {
+export const MOCK_CHAPTERS: Record<string, Partial<Record<BibleVersion, BibleChapter>>> = {
   // ==================== GÉNESIS 1 ====================
   'GEN_1': {
     RVR1960: {

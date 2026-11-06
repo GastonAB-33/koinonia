@@ -3,6 +3,7 @@ import { useStudyStore } from '../../store/useStudyStore';
 import { useLexiconStore } from '../../store/useLexiconStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { StudySidebarDrawer } from '../study/StudySidebarDrawer';
+import { StudyCameraModal } from '../study/StudyCameraModal';
 import { ThemeDropdown } from './ThemeDropdown';
 import {
   BookOpen,
@@ -16,7 +17,8 @@ import {
   Palette,
   FileText,
   // PenTool, // Oculto temporalmente junto con Cuaderno Libre
-  BookMarked
+  BookMarked,
+  Camera
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { openLexicon } = useLexiconStore();
   const { currentTheme } = useThemeStore();
   const [isStudiesDrawerOpen, setIsStudiesDrawerOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   const activeStudy = getActiveStudy();
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
@@ -199,6 +202,20 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Selector Desplegable de Temas y Paletas de Cuaderno Digital */}
         <ThemeDropdown />
 
+        {/* Acceso Rápido a la Cámara / Escaneo con IA */}
+        <button
+          onClick={() => setIsCameraModalOpen(true)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer ${
+            isDark
+              ? 'border-amber-800/80 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+              : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900'
+          }`}
+          title="Tomar foto con la cámara y transcribir notas o libros con IA"
+        >
+          <Camera className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span className="hidden sm:inline font-semibold">Escanear</span>
+        </button>
+
         {/* Acceso Rápido al Panel Léxico */}
         <button
           onClick={() => openLexicon('Juan 1:1', 'Verbo')}
@@ -261,6 +278,9 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Menú Lateral Izquierdo de Estudios Bíblicos */}
       <StudySidebarDrawer isOpen={isStudiesDrawerOpen} onClose={() => setIsStudiesDrawerOpen(false)} />
+
+      {/* Modal de Transcripción con Cámara */}
+      <StudyCameraModal isOpen={isCameraModalOpen} onClose={() => setIsCameraModalOpen(false)} />
     </header>
   );
 };

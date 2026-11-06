@@ -10,6 +10,11 @@ export interface IAIService {
    * Genera un resumen teológico o sugerencia de conexiones para la pizarra
    */
   suggestCrossReferences(topicOrVerse: string): Promise<string[]>;
+
+  /**
+   * Transcribe apuntes, manuscritos o páginas de estudios bíblicos a texto estructurado en Markdown
+   */
+  transcribeStudyImage?(base64Data: string, mimeType?: string, customPrompt?: string): Promise<string>;
 }
 
 export { geminiService as aiService, getGeminiApiKey, setGeminiApiKey } from './geminiAIService';
