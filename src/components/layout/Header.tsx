@@ -4,6 +4,8 @@ import { useLexiconStore } from '../../store/useLexiconStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { StudySidebarDrawer } from '../study/StudySidebarDrawer';
 import { StudyCameraModal } from '../study/StudyCameraModal';
+import { UserProfileMenu } from '../auth/UserProfileMenu';
+import { GoogleAuthModal } from '../auth/GoogleAuthModal';
 import { ThemeDropdown } from './ThemeDropdown';
 import {
   BookOpen,
@@ -244,6 +246,9 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
         </div>
 
+        {/* Perfil de Usuario / Inicio de Sesión con Google */}
+        <UserProfileMenu />
+
         {/* Presets de tamaño de pantalla dividida */}
         <div className={`hidden lg:flex items-center gap-0.5 border-l pl-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
           <button
@@ -281,6 +286,9 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Modal de Transcripción con Cámara */}
       <StudyCameraModal isOpen={isCameraModalOpen} onClose={() => setIsCameraModalOpen(false)} />
+
+      {/* Modal de Inicio de Sesión con Google */}
+      <GoogleAuthModal />
     </header>
   );
 };

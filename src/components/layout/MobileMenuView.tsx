@@ -3,6 +3,8 @@ import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { BibleSelectorModal } from '../bible/BibleSelectorModal';
 import { StudyCameraModal } from '../study/StudyCameraModal';
+import { GoogleLogo } from '../auth/GoogleLogo';
+import { useAuthStore } from '../../store/useAuthStore';
 import {
   BookOpen,
   Search,
@@ -16,7 +18,9 @@ import {
   Smartphone,
   Share2,
   Camera,
-  Sparkles
+  Sparkles,
+  LogOut,
+  Heart
 } from 'lucide-react';
 
 interface MobileMenuViewProps {
@@ -34,6 +38,17 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
     toggleParallelMode
   } = useBibleStore();
   const { currentTheme, setTheme } = useThemeStore();
+  const {
+    user,
+    partnerUser,
+    activeRole,
+    setIsAuthModalOpen,
+    switchActiveProfile,
+    logout,
+    getActiveUser
+  } = useAuthStore();
+  const activeUser = getActiveUser();
+
   const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
@@ -107,6 +122,108 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
 
       {/* Contenido del Menú */}
       <div className="p-4 space-y-4 max-w-lg mx-auto w-full pb-20">
+        {/* Tarjeta de Cuenta & Inicio de Sesión con Google */}
+        {user ? (
+          <div
+            className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
+              isDark
+                ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800'
+                : 'bg-gradient-to-br from-white to-slate-50 border-slate-200'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  {activeUser?.picture ? (
+                    <img
+                      src={activeUser.picture}
+                      alt={activeUser.name}
+                      className="w-11 h-11 rounded-2xl object-cover ring-2 ring-emerald-500/40"
+                    />
+                  ) : (
+                    <div
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base text-white shadow-sm ${
+                        activeRole === 'partner'
+                          ? 'bg-gradient-to-tr from-purple-600 to-purple-500'
+                          : 'bg-gradient-to-tr from-amber-600 to-amber-500'
+                      }`}
+                    >
+                      {(activeUser?.name || user.name).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-bold text-sm truncate">{activeUser?.name || user.name}</h3>
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-0.5">
+                      <GoogleLogo className="w-2.5 h-2.5" /> Google
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate">{activeUser?.email || user.email}</p>
+                </div>
+              </div>
+
+              <button
+                onClick={logout}
+                className={`p-2 rounded-xl text-slate-400 hover:text-rose-500 transition-colors ${
+                  isDark ? 'hover:bg-rose-950/40' : 'hover:bg-rose-50'
+                }`}
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Alternador de Modo Pareja en Móvil */}
+            {partnerUser && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <Heart className="w-3 h-3 text-rose-500" />
+                  <span>Autor activo: <strong>{activeRole === 'partner' ? partnerUser.name : user.givenName || user.name}</strong></span>
+                </div>
+                <button
+                  onClick={switchActiveProfile}
+                  className={`text-[11px] font-bold px-2 py-1 rounded-lg border transition-colors ${
+                    isDark
+                      ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-purple-300'
+                      : 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-800'
+                  }`}
+                >
+                  Cambiar autor
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
+              isDark
+                ? 'bg-gradient-to-br from-slate-900 to-amber-950/30 border-amber-900/50'
+                : 'bg-gradient-to-br from-white to-amber-50/70 border-amber-200/80'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
+                <GoogleLogo className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xs">Tu Cuenta Koinonía</h3>
+                <p className="text-[11px] text-slate-400">Inicia sesión con Google para sincronizar tus notas y autoría</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              <GoogleLogo className="w-4 h-4" />
+              <span>Iniciar Sesión con Google</span>
+            </button>
+          </div>
+        )}
+
         {/* Tarjeta de Instalación PWA para Móvil */}
         <div
           className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${

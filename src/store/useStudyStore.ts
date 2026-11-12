@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { Study, StudyBlock } from '../types/study';
 import { BibleVerse } from '../types/bible';
 import { BIBLE_BOOKS } from '../services/bible/mockBibleData';
+import { useAuthStore } from './useAuthStore';
 
 interface StudyState {
   studies: Study[];
@@ -171,6 +172,7 @@ export const useStudyStore = create<StudyState>()(
 
       createStudy: (title: string, tags: string[] = ['Personal'], description: string = 'Notas y reflexiones compartidas.') => {
         const id = `study-${Date.now()}`;
+        const currentAuthor = useAuthStore.getState().getActiveAuthorName();
         const newStudy: Study = {
           id,
           title: title.trim() || 'Nuevo Estudio Bíblico',
@@ -178,7 +180,7 @@ export const useStudyStore = create<StudyState>()(
           tags,
           createdAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
           updatedAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
-          author: 'Alejandro y Esposa',
+          author: currentAuthor,
           blocks: [
             {
               id: `blk-${Date.now()}`,
@@ -207,7 +209,7 @@ export const useStudyStore = create<StudyState>()(
             tags: ['Personal'],
             createdAt: new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
             updatedAt: 'Recién creado',
-            author: 'Alejandro y Esposa',
+            author: useAuthStore.getState().getActiveAuthorName(),
             blocks: []
           };
           set({ studies: [defaultStudy], activeStudyId: defaultStudy.id });
