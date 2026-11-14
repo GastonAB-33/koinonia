@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useStudyStore } from '../../store/useStudyStore';
 import { useSketchbookStore } from '../../store/useSketchbookStore';
@@ -87,6 +88,20 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
+  // Bloquear scroll de fondo de la pantalla al estar abierto el modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleFile = async (file: File) => {
@@ -171,14 +186,22 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
     setShowKeyInput(false);
   };
 
-  return (
-    <div className="fixed inset-0 z-[160] flex flex-col justify-end sm:justify-center sm:items-center sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-150">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center sm:items-center sm:p-4 bg-slate-950/95 backdrop-blur-md overflow-hidden animate-in fade-in duration-150"
+      style={{ touchAction: 'none' }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className={`w-full h-[100dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl rounded-none sm:rounded-3xl border-0 sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
+        className={`w-full h-[95dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border-t sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
           isDark
-            ? 'bg-slate-900 sm:border-slate-700 text-white shadow-black/90'
-            : 'bg-white sm:border-slate-200 text-slate-800 shadow-2xl'
+            ? 'bg-slate-900 border-slate-700 text-white shadow-black/90'
+            : 'bg-white border-slate-200 text-slate-800 shadow-2xl'
         }`}
+        style={{ touchAction: 'pan-y' }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera del Modal */}
         <div
@@ -197,7 +220,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
                 <h2 className="font-bold text-sm sm:text-base truncate">Transcribir con Cámara</h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-1 shrink-0">
                   <Sparkles className="w-2.5 h-2.5" />
-                  Gemini 3.5 Flash
+                  Gemini Vision AI
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 truncate hidden sm:block">
@@ -521,6 +544,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

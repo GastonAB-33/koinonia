@@ -3,9 +3,49 @@ import { IAIService } from './aiService';
 import { MockAIService } from './mockAIService';
 
 const STORAGE_KEY = 'koinonia_gemini_api_key';
-const PRIMARY_MODEL = 'gemini-3.5-flash';
-const FALLBACK_MODEL = 'gemini-3.1-flash-lite';
-const LEGACY_MODEL = 'gemini-3-flash-preview';
+
+const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro'
+];
+
+let cachedWorkingModel: string | null = null;
+
+async function getCandidateModels(apiKey: string): Promise<string[]> {
+  if (cachedWorkingModel) {
+    return [cachedWorkingModel, ...CANDIDATE_MODELS.filter((m) => m !== cachedWorkingModel)];
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data?.models)) {
+        const supported: string[] = data.models
+          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m: any) => m.name.replace(/^models\//, ''));
+
+        const preferred = CANDIDATE_MODELS.find((candidate) => supported.includes(candidate));
+        if (preferred) {
+          cachedWorkingModel = preferred;
+          return [preferred, ...supported.filter((m) => m !== preferred)];
+        }
+        if (supported.length > 0) {
+          cachedWorkingModel = supported[0];
+          return supported;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[GeminiAIService] No se pudo obtener la lista dinámica de modelos:', e);
+  }
+
+  return CANDIDATE_MODELS;
+}
 
 /**
  * Obtiene la API Key configurada por el usuario (en localStorage o variable de entorno de Vite)
@@ -48,7 +88,7 @@ export class GeminiAIService implements IAIService {
       return { success: false, message: 'No se ha proporcionado ninguna API Key.' };
     }
 
-    const models = [PRIMARY_MODEL, FALLBACK_MODEL, LEGACY_MODEL];
+    const models = await getCandidateModels(key);
     let lastError = '';
 
     for (const model of models) {
@@ -72,6 +112,7 @@ export class GeminiAIService implements IAIService {
         });
 
         if (response.ok) {
+          cachedWorkingModel = model;
           return { success: true, message: `¡Conexión exitosa con Google Gemini AI (${model})!` };
         }
 
@@ -146,42 +187,40 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
       return JSON.parse(cleanJson);
     };
 
-    try {
-      let parsed: any;
+    const models = await getCandidateModels(apiKey);
+    let lastError: any = null;
+
+    for (const model of models) {
       try {
-        parsed = await tryCallModel(PRIMARY_MODEL);
-      } catch (primaryErr) {
-        console.warn(`[GeminiAIService] Falló ${PRIMARY_MODEL}, reintentando con ${FALLBACK_MODEL}:`, primaryErr);
-        try {
-          parsed = await tryCallModel(FALLBACK_MODEL);
-        } catch (fallbackErr) {
-          console.warn(`[GeminiAIService] Falló ${FALLBACK_MODEL}, reintentando con ${LEGACY_MODEL}:`, fallbackErr);
-          parsed = await tryCallModel(LEGACY_MODEL);
-        }
+        const parsed = await tryCallModel(model);
+        cachedWorkingModel = model;
+
+        const langLower = String(parsed.language || '').toLowerCase();
+        const normalizedLang =
+          langLower.includes('heb') ? 'hebrew' : langLower.includes('aram') ? 'aramaic' : 'greek';
+
+        return {
+          wordOrPhrase: parsed.wordOrPhrase || wordOrPhrase,
+          originalText: parsed.originalText || wordOrPhrase,
+          transliteration: parsed.transliteration || '',
+          language: normalizedLang,
+          strongNumber: parsed.strongNumber || 'S/N',
+          morphology: parsed.morphology || 'Término bíblico',
+          rootWord: parsed.rootWord || parsed.originalText || '',
+          definition: parsed.definition || 'Sin definición disponible.',
+          theologicalContext: parsed.theologicalContext || '',
+          occurrencesCount: typeof parsed.occurrencesCount === 'number' ? parsed.occurrencesCount : 1,
+          crossReferences: Array.isArray(parsed.crossReferences) ? parsed.crossReferences : [verseRef]
+        };
+      } catch (err) {
+        lastError = err;
+        console.warn(`[GeminiAIService] Falló ${model}:`, err);
       }
-
-      const langLower = String(parsed.language || '').toLowerCase();
-      const normalizedLang =
-        langLower.includes('heb') ? 'hebrew' : langLower.includes('aram') ? 'aramaic' : 'greek';
-
-      return {
-        wordOrPhrase: parsed.wordOrPhrase || wordOrPhrase,
-        originalText: parsed.originalText || wordOrPhrase,
-        transliteration: parsed.transliteration || '',
-        language: normalizedLang,
-        strongNumber: parsed.strongNumber || 'S/N',
-        morphology: parsed.morphology || 'Término bíblico',
-        rootWord: parsed.rootWord || parsed.originalText || '',
-        definition: parsed.definition || 'Sin definición disponible.',
-        theologicalContext: parsed.theologicalContext || '',
-        occurrencesCount: typeof parsed.occurrencesCount === 'number' ? parsed.occurrencesCount : 1,
-        crossReferences: Array.isArray(parsed.crossReferences) ? parsed.crossReferences : [verseRef]
-      };
-    } catch (error: any) {
-      console.warn('[GeminiAIService] Falló la llamada a Gemini, recurriendo a Concordancia Strong local:', error);
-      const fallback = await this.mockFallback.analyzeOriginalLanguage(verseRef, wordOrPhrase);
-      return fallback;
     }
+
+    console.warn('[GeminiAIService] Falló la llamada a Gemini, recurriendo a Concordancia Strong local:', lastError);
+    const fallback = await this.mockFallback.analyzeOriginalLanguage(verseRef, wordOrPhrase);
+    return fallback;
   }
 
   async suggestCrossReferences(topicOrVerse: string): Promise<string[]> {
@@ -190,37 +229,44 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
       return this.mockFallback.suggestCrossReferences(topicOrVerse);
     }
 
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${PRIMARY_MODEL}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text: `Provee 4 referencias cruzadas clave para "${topicOrVerse}". Responde ÚNICAMENTE en JSON como un arreglo de cadenas: ["Libro Cap:Ver - Breve nota en español", ...]`
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json'
-          }
-        })
-      });
+    const models = await getCandidateModels(apiKey);
 
-      if (!response.ok) throw new Error('Error al sugerir referencias cruzadas.');
-      const data = await response.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      const cleanJson = rawText.replace(/```json\n?|```/g, '').trim();
-      return JSON.parse(cleanJson);
-    } catch {
-      return this.mockFallback.suggestCrossReferences(topicOrVerse);
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: `Provee 4 referencias cruzadas clave para "${topicOrVerse}". Responde ÚNICAMENTE en JSON como un arreglo de cadenas: ["Libro Cap:Ver - Breve nota en español", ...]`
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+
+        if (!response.ok) throw new Error('Error al sugerir referencias cruzadas.');
+        const data = await response.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const cleanJson = rawText.replace(/```json\n?|```/g, '').trim();
+        cachedWorkingModel = model;
+        return JSON.parse(cleanJson);
+      } catch {
+        continue;
+      }
     }
+
+    return this.mockFallback.suggestCrossReferences(topicOrVerse);
   }
 
   async transcribeStudyImage(
@@ -292,23 +338,23 @@ INSTRUCCIONES CLAVE:
       return rawText.trim();
     };
 
-    try {
+    const models = await getCandidateModels(apiKey);
+    let lastError: any = null;
+
+    for (const model of models) {
       try {
-        return await tryCallVision(PRIMARY_MODEL);
-      } catch (err1) {
-        console.warn(`[GeminiAIService] Falló visión con ${PRIMARY_MODEL}, reintentando con ${FALLBACK_MODEL}:`, err1);
-        try {
-          return await tryCallVision(FALLBACK_MODEL);
-        } catch (err2) {
-          console.warn(`[GeminiAIService] Falló visión con ${FALLBACK_MODEL}, reintentando con ${LEGACY_MODEL}:`, err2);
-          return await tryCallVision(LEGACY_MODEL);
-        }
+        const result = await tryCallVision(model);
+        cachedWorkingModel = model;
+        return result;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[GeminiAIService] Falló visión con ${model}:`, err);
       }
-    } catch (finalErr: any) {
-      console.warn('[GeminiAIService] Falló la llamada de visión a Gemini, recurriendo a Mock:', finalErr);
-      const fallback = await this.mockFallback.transcribeStudyImage(base64Data, mimeType, customPrompt);
-      return `${fallback}\n\n*(Nota de respaldo: Transcripción simulada generada porque falló la conexión con la clave de IA: ${finalErr.message})*`;
     }
+
+    console.warn('[GeminiAIService] Falló la llamada de visión a Gemini, recurriendo a Mock:', lastError);
+    const fallback = await this.mockFallback.transcribeStudyImage(base64Data, mimeType, customPrompt);
+    return `${fallback}\n\n*(Nota de respaldo: Transcripción simulada generada porque falló la conexión con la clave de IA: ${lastError?.message || 'Error de modelos'})*`;
   }
 }
 

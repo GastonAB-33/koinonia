@@ -5,22 +5,19 @@ import { useSketchbookStore } from '../../store/useSketchbookStore';
 import { useCanvasStore } from '../../store/useCanvasStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { Study } from '../../types/study';
+import { CreateStudyModal } from './CreateStudyModal';
+import { StudyDetailModal } from './StudyDetailModal';
 import {
   BookOpen,
   Plus,
   Search,
   X,
   Check,
-  Calendar,
   Tag,
-  Copy,
-  Trash2,
-  Edit2,
   Download,
   Upload,
-  Sparkles,
-  FileText,
   BookMarked,
+  FileText,
   Layers,
   ShieldCheck,
   ChevronRight
@@ -36,11 +33,7 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
     studies,
     activeStudyId,
     setActiveStudyId,
-    createStudy,
-    deleteStudy,
-    duplicateStudy,
-    updateStudyTitle,
-    exportActiveStudyAsMarkdown
+    createStudy
   } = useStudyStore();
 
   const { getStudyData } = useSketchbookStore();
@@ -50,32 +43,41 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('ALL');
-  const [isCreating, setIsCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newTag, setNewTag] = useState('');
-  const [editingStudyId, setEditingStudyId] = useState<string | null>(null);
-  const [editTitleInput, setEditTitleInput] = useState('');
-  const [deletingStudyId, setDeletingStudyId] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedStudyForDetail, setSelectedStudyForDetail] = useState<Study | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Escuchar tecla Escape para cerrar
+  // Inmovilizar la pantalla de atrás cuando el menú está abierto
   useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
+      if (e.key === 'Escape') {
+        if (selectedStudyForDetail) {
+          setSelectedStudyForDetail(null);
+        } else if (isCreateModalOpen) {
+          setIsCreateModalOpen(false);
+        } else {
+          onClose();
+        }
       }
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
-    }
+
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, selectedStudyForDetail, isCreateModalOpen]);
 
   // Lista de tags únicos
   const allTags = useMemo(() => {
@@ -98,65 +100,17 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
     });
   }, [studies, selectedTag, searchQuery]);
 
+  // Si cambia el estudio en store mientras el detalle está abierto, sincronizarlo
+  useEffect(() => {
+    if (selectedStudyForDetail) {
+      const updated = studies.find((s) => s.id === selectedStudyForDetail.id);
+      if (updated) {
+        setSelectedStudyForDetail(updated);
+      }
+    }
+  }, [studies, selectedStudyForDetail]);
+
   if (!isOpen) return null;
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    const tags = newTag.trim() ? [newTag.trim()] : ['Estudio'];
-    createStudy(newTitle.trim(), tags, newDesc.trim() || undefined);
-    setNewTitle('');
-    setNewDesc('');
-    setNewTag('');
-    setIsCreating(false);
-    onClose();
-  };
-
-  const handleStartRename = (study: Study, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingStudyId(study.id);
-    setEditTitleInput(study.title);
-  };
-
-  const handleSaveRename = (studyId: string, e: React.MouseEvent | React.FormEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (editTitleInput.trim()) {
-      updateStudyTitle(studyId, editTitleInput.trim());
-    }
-    setEditingStudyId(null);
-  };
-
-  const handleDuplicate = (studyId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    duplicateStudy(studyId);
-  };
-
-  const handleDelete = (studyId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (deletingStudyId === studyId) {
-      deleteStudy(studyId);
-      setDeletingStudyId(null);
-    } else {
-      setDeletingStudyId(studyId);
-      setTimeout(() => {
-        setDeletingStudyId((prev) => (prev === studyId ? null : prev));
-      }, 4000);
-    }
-  };
-
-  const handleDownloadMarkdown = (study: Study, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveStudyId(study.id);
-    const md = exportActiveStudyAsMarkdown();
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${study.title.replace(/[/\\?%*:|"<>]/g, '-')}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   // Exportar backup completo JSON de todos los estudios
   const handleExportFullBackup = () => {
@@ -185,7 +139,6 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
       try {
         const json = JSON.parse(event.target?.result as string);
         if (json.studies && Array.isArray(json.studies)) {
-          // Reemplazar o integrar
           json.studies.forEach((s: Study) => {
             if (!studies.find((exist) => exist.id === s.id)) {
               createStudy(s.title, s.tags, s.description);
@@ -204,12 +157,14 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex animate-in fade-in duration-200"
+      className="fixed inset-0 z-[120] flex animate-in fade-in duration-200"
+      style={{ touchAction: 'none' }}
     >
-      {/* Fondo semitransparente con clic para cerrar */}
+      {/* Fondo semitransparente fijo con clic para cerrar */}
       <div
         className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm transition-opacity"
         onClick={onClose}
+        style={{ touchAction: 'none' }}
       />
 
       {/* Cajón Lateral Izquierdo */}
@@ -220,18 +175,19 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
             : 'bg-white border-slate-200 text-slate-800 shadow-2xl'
         }`}
         onClick={(e) => e.stopPropagation()}
+        style={{ touchAction: 'auto' }}
       >
         {/* Cabecera Principal */}
         <div
-          className={`p-4 border-b flex items-center justify-between gap-3 ${
+          className={`p-4 border-b flex items-center justify-between gap-3 shrink-0 ${
             isDark ? 'border-slate-800 bg-slate-900/90' : 'border-slate-100 bg-slate-50/80'
           }`}
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center shadow-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center shadow-md shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h2 className={`font-serif font-bold text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Mis Estudios
@@ -244,15 +200,15 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
                   {studies.length}
                 </span>
               </div>
-              <span className={`text-[11px] block -mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Biblioteca personal & colaborativa
+              <span className={`text-[11px] block -mt-0.5 truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Toca cualquier estudio para ver detalles
               </span>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className={`p-1.5 rounded-xl transition-colors ${
+            className={`p-1.5 rounded-xl transition-colors shrink-0 ${
               isDark
                 ? 'text-slate-400 hover:text-white hover:bg-slate-800'
                 : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
@@ -265,99 +221,31 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
 
         {/* Banner de Garantía de Autoguardado */}
         <div
-          className={`px-4 py-2 text-[11px] font-medium border-b flex items-center gap-2 ${
+          className={`px-4 py-2 text-[11px] font-medium border-b flex items-center gap-2 shrink-0 ${
             isDark
               ? 'bg-emerald-950/40 border-emerald-900/50 text-emerald-300'
               : 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
           }`}
         >
           <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>
-            <strong>Autoguardado en tiempo real:</strong> Tus notas, versículos y dibujos se guardan automáticamente en este dispositivo.
+          <span className="truncate">
+            <strong>Autoguardado en tiempo real:</strong> Tus notas y dibujos se guardan automáticamente.
           </span>
         </div>
 
-        {/* Botón de Creación / Formulario */}
-        <div className={`p-4 border-b ${isDark ? 'border-slate-800/80' : 'border-slate-100'}`}>
-          {isCreating ? (
-            <form onSubmit={handleCreateSubmit} className="space-y-2.5 animate-in fade-in duration-150">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Nuevo Estudio Bíblico</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setIsCreating(false)}
-                  className="text-xs text-slate-400 hover:text-slate-600"
-                >
-                  Cancelar
-                </button>
-              </div>
-
-              <input
-                type="text"
-                required
-                autoFocus
-                placeholder="Título del estudio (ej. Romanos 8: Vida en el Espíritu)"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                className={`w-full px-3 py-1.5 text-xs rounded-xl border focus:outline-none focus:ring-1 ${
-                  isDark
-                    ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-amber-500 focus:ring-amber-500'
-                    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:ring-amber-600'
-                }`}
-              />
-
-              <input
-                type="text"
-                placeholder="Descripción corta o propósito del estudio..."
-                value={newDesc}
-                onChange={(e) => setNewDesc(e.target.value)}
-                className={`w-full px-3 py-1.5 text-xs rounded-xl border focus:outline-none focus:ring-1 ${
-                  isDark
-                    ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-amber-500 focus:ring-amber-500'
-                    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:ring-amber-600'
-                }`}
-              />
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Etiqueta (ej. Soteriología, Matrimonio)"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  className={`flex-1 px-3 py-1.5 text-xs rounded-xl border focus:outline-none focus:ring-1 ${
-                    isDark
-                      ? 'bg-slate-900 border-slate-700 text-white placeholder-slate-500 focus:border-amber-500 focus:ring-amber-500'
-                      : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600 focus:ring-amber-600'
-                  }`}
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-                >
-                  Crear y Abrir
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              onClick={() => setIsCreating(true)}
-              className={`w-full py-2.5 px-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs ${
-                isDark
-                  ? 'bg-amber-600/20 hover:bg-amber-600/30 border-amber-600/50 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                  : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900'
-              }`}
-            >
-              <Plus className="w-4 h-4 text-amber-500" />
-              <span>+ Crear Nuevo Estudio</span>
-            </button>
-          )}
+        {/* Botón de Creación con Modal Emergente */}
+        <div className={`p-3.5 border-b shrink-0 ${isDark ? 'border-slate-800/80 bg-slate-900/40' : 'border-slate-100 bg-amber-50/30'}`}>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Crear Nuevo Estudio</span>
+          </button>
         </div>
 
         {/* Buscador y Filtro por Etiquetas */}
-        <div className={`p-3 border-b space-y-2 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+        <div className={`p-3 border-b space-y-2 shrink-0 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -419,26 +307,23 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
           )}
         </div>
 
-        {/* Lista de Estudios */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5">
+        {/* Lista de Estudios: Títulos + Iconitos de Páginas, Notas y Nodos */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-2">
           {filteredStudies.map((study) => {
             const isActive = study.id === activeStudyId;
-            const isEditing = editingStudyId === study.id;
             const sketchbookData = getStudyData(study.id);
             const canvasData = canvasByStudy[study.id];
 
             const pageCount = sketchbookData?.pages?.length || 1;
             const blockCount = study.blocks?.length || 0;
             const nodeCount = canvasData?.nodes?.length || 0;
+            const tagCount = study.tags?.length || 0;
 
             return (
               <div
                 key={study.id}
-                onClick={() => {
-                  setActiveStudyId(study.id);
-                  onClose();
-                }}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer group relative ${
+                onClick={() => setSelectedStudyForDetail(study)}
+                className={`p-3.5 rounded-2xl border transition-all cursor-pointer group relative flex flex-col gap-2 ${
                   isActive
                     ? isDark
                       ? 'border-amber-500 bg-amber-950/30 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/50'
@@ -448,146 +333,77 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
                     : 'border-slate-200/90 bg-white hover:border-amber-300 hover:bg-amber-50/30 text-slate-800 shadow-2xs'
                 }`}
               >
-                {/* Cabecera de la tarjeta: Título e Indicador de Activo */}
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                  {isEditing ? (
-                    <form
-                      onSubmit={(e) => handleSaveRename(study.id, e)}
-                      className="flex items-center gap-1.5 w-full"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="text"
-                        value={editTitleInput}
-                        onChange={(e) => setEditTitleInput(e.target.value)}
-                        autoFocus
-                        className={`w-full px-2 py-1 text-xs rounded-lg border focus:outline-none ${
-                          isDark
-                            ? 'bg-slate-800 border-amber-500 text-white'
-                            : 'bg-white border-amber-500 text-slate-900'
-                        }`}
-                      />
-                      <button
-                        type="submit"
-                        className="p-1 rounded-lg bg-emerald-600 text-white"
-                        title="Guardar nombre"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                    </form>
-                  ) : (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-serif font-bold text-sm leading-snug group-hover:text-amber-500 transition-colors">
-                        {study.title}
-                      </h3>
-                      {isActive && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-2xs flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5" />
-                          <span>Activo</span>
-                        </span>
-                      )}
-                    </div>
-                  )}
+                {/* Cabecera de la tarjeta: Título e Indicador */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                    <h3 className="font-serif font-bold text-sm leading-snug group-hover:text-amber-500 transition-colors line-clamp-2">
+                      {study.title}
+                    </h3>
+                    {isActive && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-2xs flex items-center gap-1 shrink-0">
+                        <Check className="w-2.5 h-2.5" />
+                        <span>Activo</span>
+                      </span>
+                    )}
+                  </div>
 
-                  {!isEditing && (
-                    <ChevronRight
-                      className={`w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5 ${
-                        isActive ? 'text-amber-500' : 'text-slate-400 opacity-60'
-                      }`}
-                    />
-                  )}
+                  <div className="flex items-center gap-1 shrink-0 text-slate-400 group-hover:text-amber-500 transition-colors">
+                    <span className="text-[10px] hidden sm:inline font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                      Ver info
+                    </span>
+                    <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                  </div>
                 </div>
 
-                {/* Descripción si la tiene */}
-                {study.description && (
-                  <p className={`text-xs line-clamp-2 mb-2 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {study.description}
-                  </p>
-                )}
-
-                {/* Métricas de Contenido Guardado */}
-                <div className="flex items-center gap-2.5 text-[11px] font-medium text-slate-400 mb-2 flex-wrap">
-                  <span className="flex items-center gap-1" title="Páginas en Sketchbook">
+                {/* Métricas e Iconitos de Contenido Solicitados */}
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 flex-wrap">
+                  {/* Icono de Páginas en Sketchbook */}
+                  <span
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                      isDark ? 'bg-amber-950/40 border-amber-900/60 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}
+                    title={`${pageCount} página(s) de sketchbook estilo Cornell`}
+                  >
                     <BookMarked className="w-3.5 h-3.5 text-amber-500" />
                     <span>{pageCount} pág{pageCount > 1 ? 's' : ''}</span>
                   </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1" title="Bloques en Cuaderno">
+
+                  {/* Icono de Bloques de Notas */}
+                  <span
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                      isDark ? 'bg-emerald-950/40 border-emerald-900/60 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    }`}
+                    title={`${blockCount} bloques de texto, versículos y reflexiones`}
+                  >
                     <FileText className="w-3.5 h-3.5 text-emerald-500" />
                     <span>{blockCount} nota{blockCount > 1 ? 's' : ''}</span>
                   </span>
+
+                  {/* Icono de Nodos en Pizarra */}
                   {nodeCount > 0 && (
-                    <>
-                      <span>•</span>
-                      <span className="flex items-center gap-1" title="Nodos en Pizarra">
-                        <Layers className="w-3.5 h-3.5 text-blue-500" />
-                        <span>{nodeCount} nodos</span>
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Etiquetas */}
-                {study.tags && study.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {study.tags.map((t) => (
-                      <span
-                        key={t}
-                        className={`text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                          isDark
-                            ? 'bg-slate-800 text-slate-300 border border-slate-700/80'
-                            : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <Tag className="w-2.5 h-2.5 text-slate-400" />
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Pie de tarjeta con Fecha y Acciones Rápidas */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 dark:border-slate-800/60 text-[11px] text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-slate-400" />
-                    <span>{study.createdAt}</span>
-                  </span>
-
-                  {/* Botones de Acción */}
-                  <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-                    <button
-                      onClick={(e) => handleStartRename(study, e)}
-                      className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-                      title="Renombrar título"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDuplicate(study.id, e)}
-                      className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-                      title="Duplicar estudio"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDownloadMarkdown(study, e)}
-                      className="p-1 rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-                      title="Descargar estudio como Markdown (.md)"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDelete(study.id, e)}
-                      className={`p-1 rounded-lg transition-colors ${
-                        deletingStudyId === study.id
-                          ? 'bg-rose-600 text-white font-bold'
-                          : 'hover:bg-rose-500/10 text-slate-400 hover:text-rose-500'
+                    <span
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                        isDark ? 'bg-blue-950/40 border-blue-900/60 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-900'
                       }`}
-                      title={deletingStudyId === study.id ? 'Confirmar eliminación' : 'Eliminar estudio'}
+                      title={`${nodeCount} nodos conceptuales en la pizarra`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                      <Layers className="w-3.5 h-3.5 text-blue-500" />
+                      <span>{nodeCount} nodos</span>
+                    </span>
+                  )}
+
+                  {/* Icono de Etiquetas */}
+                  {tagCount > 0 && (
+                    <span
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                        isDark ? 'bg-purple-950/40 border-purple-900/60 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-900'
+                      }`}
+                      title={`Etiquetas: ${study.tags.join(', ')}`}
+                    >
+                      <Tag className="w-3 h-3 text-purple-400" />
+                      <span>{tagCount} tag{tagCount > 1 ? 's' : ''}</span>
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -602,7 +418,7 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
 
         {/* Pie del Menú Lateral: Copia de Seguridad */}
         <div
-          className={`p-3.5 border-t flex flex-col gap-2 ${
+          className={`p-3.5 border-t flex flex-col gap-2 shrink-0 ${
             isDark ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50'
           }`}
         >
@@ -650,6 +466,28 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
           </div>
         </div>
       </div>
+
+      {/* Modal Emergente de Creación de Nuevo Estudio (con múltiples etiquetas y fondo fijo) */}
+      <CreateStudyModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={(id) => {
+          setActiveStudyId(id);
+          onClose();
+        }}
+      />
+
+      {/* Panel Emergente de Detalle de Estudio (con más info y botón para ver) */}
+      <StudyDetailModal
+        study={selectedStudyForDetail}
+        isOpen={Boolean(selectedStudyForDetail)}
+        onClose={() => setSelectedStudyForDetail(null)}
+        onSelectAndOpen={(id) => {
+          setActiveStudyId(id);
+          setSelectedStudyForDetail(null);
+          onClose();
+        }}
+      />
     </div>
   );
 

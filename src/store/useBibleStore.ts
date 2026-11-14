@@ -1,7 +1,47 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { BibleBook, BibleChapter, BibleVerse, BibleVersion, Highlight, HighlightColor } from '../types/bible';
+import {
+  BibleBook,
+  BibleChapter,
+  BibleVerse,
+  BibleVersion,
+  Highlight,
+  HighlightColor,
+  CustomBook,
+  CustomChapter
+} from '../types/bible';
 import { bibleService } from '../services/bible/mockBibleService';
+
+const parseParagraphs = (content: string): string[] => {
+  return content
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+};
+
+const INITIAL_CUSTOM_BOOKS: CustomBook[] = [
+  {
+    id: 'cb-romanos-comentario',
+    title: 'Comentario a Romanos (Manuscrito Pastoral)',
+    author: 'Pastor John / Estudio en Fotos',
+    description: 'Transcripción digitalizada de apuntes de estudio y comentarios exegéticos a Romanos',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    chapters: [
+      {
+        chapter: 1,
+        title: 'Capítulo 1: El Justo por la Fe Vivirá',
+        content: `La justificación por la fe constituye el eje axial de la revelación paulina en la epístola a los Romanos.\n\nEn este primer capítulo, el apóstol Pablo establece con solemnidad que el evangelio no es una mera teoría filosófica, sino poder de Dios (dýnamis Theoû) para salvación a todo aquel que cree.\n\nLa justicia de Dios se revela de fe en fe, confrontando la rebelión humana y ofreciendo la gracia inmerecida a judíos y gentiles. La creación misma testifica del eterno poder y deidad del Creador, de modo que nadie tiene excusa.`,
+        paragraphs: [
+          'La justificación por la fe constituye el eje axial de la revelación paulina en la epístola a los Romanos.',
+          'En este primer capítulo, el apóstol Pablo establece con solemnidad que el evangelio no es una mera teoría filosófica, sino poder de Dios (dýnamis Theoû) para salvación a todo aquel que cree.',
+          'La justicia de Dios se revela de fe en fe, confrontando la rebelión humana y ofreciendo la gracia inmerecida a judíos y gentiles. La creación misma testifica del eterno poder y deidad del Creador, de modo que nadie tiene excusa.'
+        ],
+        createdAt: new Date().toISOString()
+      }
+    ]
+  }
+];
 
 interface BibleState {
   // Estado de navegación
@@ -9,6 +49,18 @@ interface BibleState {
   currentBookId: string;
   currentChapterNum: number;
   currentVersion: BibleVersion;
+
+  // Libros Propios subidos por el usuario (Fotos / IA)
+  customBooks: CustomBook[];
+  activeCustomBookId: string | null;
+  activeCustomChapterNum: number;
+
+  createCustomBook: (title: string, initialContent: string, author?: string) => string;
+  addChapterToCustomBook: (bookId: string, content: string, title?: string) => void;
+  selectCustomBook: (bookId: string, chapterNum?: number) => void;
+  setCustomChapter: (chapterNum: number) => void;
+  exitCustomBook: () => void;
+  deleteCustomBook: (bookId: string) => void;
 
   // Modo Paralelo
   isParallelMode: boolean;
@@ -48,6 +100,93 @@ export const useBibleStore = create<BibleState>()(
       currentBookId: 'GEN',
       currentChapterNum: 1,
       currentVersion: 'RVR1960',
+
+      // Libros Propios
+      customBooks: INITIAL_CUSTOM_BOOKS,
+      activeCustomBookId: null,
+      activeCustomChapterNum: 1,
+
+      createCustomBook: (title: string, initialContent: string, author?: string) => {
+        const id = `cb-${Date.now()}`;
+        const paragraphs = parseParagraphs(initialContent);
+        const newBook: CustomBook = {
+          id,
+          title: title.trim() || 'Mi Libro de Estudio',
+          author: author?.trim() || 'Notas Propias',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          chapters: [
+            {
+              chapter: 1,
+              title: 'Capítulo 1',
+              content: initialContent,
+              paragraphs: paragraphs.length ? paragraphs : [initialContent],
+              createdAt: new Date().toISOString()
+            }
+          ]
+        };
+        set((state) => ({
+          customBooks: [newBook, ...state.customBooks],
+          activeCustomBookId: id,
+          activeCustomChapterNum: 1
+        }));
+        return id;
+      },
+
+      addChapterToCustomBook: (bookId: string, content: string, title?: string) => {
+        const paragraphs = parseParagraphs(content);
+        set((state) => {
+          const bookIndex = state.customBooks.findIndex((b) => b.id === bookId);
+          if (bookIndex === -1) return state;
+
+          const book = state.customBooks[bookIndex];
+          const nextChapterNum = (book.chapters.length || 0) + 1;
+          const newChapter: CustomChapter = {
+            chapter: nextChapterNum,
+            title: title?.trim() || `Capítulo ${nextChapterNum}`,
+            content,
+            paragraphs: paragraphs.length ? paragraphs : [content],
+            createdAt: new Date().toISOString()
+          };
+
+          const updatedBook: CustomBook = {
+            ...book,
+            chapters: [...book.chapters, newChapter],
+            updatedAt: new Date().toISOString()
+          };
+
+          const updatedList = [...state.customBooks];
+          updatedList[bookIndex] = updatedBook;
+
+          return {
+            customBooks: updatedList,
+            activeCustomBookId: bookId,
+            activeCustomChapterNum: nextChapterNum
+          };
+        });
+      },
+
+      selectCustomBook: (bookId: string, chapterNum = 1) => {
+        set({
+          activeCustomBookId: bookId,
+          activeCustomChapterNum: chapterNum
+        });
+      },
+
+      setCustomChapter: (chapterNum: number) => {
+        set({ activeCustomChapterNum: chapterNum });
+      },
+
+      exitCustomBook: () => {
+        set({ activeCustomBookId: null });
+      },
+
+      deleteCustomBook: (bookId: string) => {
+        set((state) => ({
+          customBooks: state.customBooks.filter((b) => b.id !== bookId),
+          activeCustomBookId: state.activeCustomBookId === bookId ? null : state.activeCustomBookId
+        }));
+      },
 
       isParallelMode: true,
       parallelVersion: 'NVI',
@@ -216,7 +355,10 @@ export const useBibleStore = create<BibleState>()(
         currentVersion: state.currentVersion,
         isParallelMode: state.isParallelMode,
         parallelVersion: state.parallelVersion,
-        highlights: state.highlights
+        highlights: state.highlights,
+        customBooks: state.customBooks,
+        activeCustomBookId: state.activeCustomBookId,
+        activeCustomChapterNum: state.activeCustomChapterNum
       })
     }
   )

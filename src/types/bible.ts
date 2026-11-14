@@ -52,3 +52,21 @@ export interface Highlight {
   createdAt: string;
   note?: string;
 }
+
+export interface CustomChapter {
+  chapter: number;
+  title: string;
+  content: string;
+  paragraphs: string[];
+  createdAt: string;
+}
+
+export interface CustomBook {
+  id: string;
+  title: string;
+  author?: string;
+  description?: string;
+  chapters: CustomChapter[];
+  createdAt: string;
+  updatedAt: string;
+}
