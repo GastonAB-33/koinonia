@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useStudyStore } from '../../store/useStudyStore';
 import { useLexiconStore } from '../../store/useLexiconStore';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useBibleStore } from '../../store/useBibleStore';
 import { StudySidebarDrawer } from '../study/StudySidebarDrawer';
 import { StudyCameraModal } from '../study/StudyCameraModal';
+import { DownloadAppModal } from '../pwa/DownloadAppModal';
+import { UploadBookModal } from '../book/UploadBookModal';
+import { SmartSearchModal } from '../search/SmartSearchModal';
 import { UserProfileMenu } from '../auth/UserProfileMenu';
 import { GoogleAuthModal } from '../auth/GoogleAuthModal';
 import { ThemeDropdown } from './ThemeDropdown';
@@ -20,7 +24,10 @@ import {
   FileText,
   // PenTool, // Oculto temporalmente junto con Cuaderno Libre
   BookMarked,
-  Camera
+  Camera,
+  Download,
+  BookPlus,
+  Search
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -37,18 +44,26 @@ export const Header: React.FC<HeaderProps> = ({
   const { getActiveStudy, studies } = useStudyStore();
   const { openLexicon } = useLexiconStore();
   const { currentTheme } = useThemeStore();
+  const { activeCustomBookId, customBooks } = useBibleStore();
   const [isStudiesDrawerOpen, setIsStudiesDrawerOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isDownloadAppOpen, setIsDownloadAppOpen] = useState(false);
+  const [isUploadBookOpen, setIsUploadBookOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
+  const activeCustomBook = customBooks.find((b) => b.id === activeCustomBookId);
   const activeStudy = getActiveStudy();
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
 
-  // Atajo de teclado Ctrl+E o Cmd+E para alternar menú de estudios
+  // Atajos de teclado Ctrl+E (Estudios) y Ctrl+K (Búsqueda inteligente)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         setIsStudiesDrawerOpen((prev) => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -82,6 +97,23 @@ export const Header: React.FC<HeaderProps> = ({
           >
             {studies.length}
           </span>
+        </button>
+
+        {/* BOTÓN DE BÚSQUEDA INTELIGENTE CON FILTROS (Ctrl+K) */}
+        <button
+          onClick={() => setIsSearchModalOpen(true)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+            isDark
+              ? 'bg-slate-900 border-slate-700/80 hover:bg-slate-800 text-slate-300'
+              : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 shadow-2xs'
+          }`}
+          title="Búsqueda Inteligente con Filtros (Estudios, Libros, Fechas o Etiquetas) [Ctrl+K]"
+        >
+          <Search className="w-3.5 h-3.5 text-amber-500" />
+          <span className="hidden md:inline">Buscar...</span>
+          <kbd className="hidden lg:inline text-[9px] px-1 py-0.2 rounded border border-slate-600/50 font-mono text-slate-400">
+            Ctrl+K
+          </kbd>
         </button>
 
         {/* Logotipo y Título de la Aplicación */}
@@ -204,19 +236,53 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Selector Desplegable de Temas y Paletas de Cuaderno Digital */}
         <ThemeDropdown />
 
-        {/* Acceso Rápido a la Cámara / Escaneo con IA */}
+        {/* BOTÓN 1 SOLICITADO: SUBIR LIBRO (FOTOS + IA) */}
         <button
-          onClick={() => setIsCameraModalOpen(true)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer ${
+          onClick={() => setIsUploadBookOpen(true)}
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs cursor-pointer ${
             isDark
-              ? 'border-amber-800/80 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-              : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900'
+              ? 'border-amber-700/80 bg-gradient-to-r from-amber-950/70 to-orange-950/70 hover:from-amber-900/80 hover:to-orange-900/80 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+              : 'border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-950 shadow-2xs'
           }`}
-          title="Tomar foto con la cámara y transcribir notas o libros con IA"
+          title="Subir fotos de libros o cuadernos para transcribirlos con IA y guardarlos en tu biblioteca"
         >
-          <Camera className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <span className="hidden sm:inline font-semibold">Escanear</span>
+          <BookPlus className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span className="hidden sm:inline">Subir Libro</span>
+          <span className="sm:hidden">Libro</span>
         </button>
+
+        {/* BOTÓN 2 SOLICITADO: DESCARGAR APP (WEBAPP / PWA) */}
+        <button
+          onClick={() => setIsDownloadAppOpen(true)}
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs cursor-pointer ${
+            isDark
+              ? 'border-blue-700/80 bg-gradient-to-r from-blue-950/70 to-indigo-950/70 hover:from-blue-900/80 hover:to-indigo-900/80 text-blue-300 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+              : 'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-950 shadow-2xs'
+          }`}
+          title="Descargar e instalar Koinonía App Web (PWA) en tu celular o PC"
+        >
+          <Download className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <span className="hidden sm:inline">Descargar App</span>
+          <span className="sm:hidden">App</span>
+        </button>
+
+        {/* Acceso Rápido a la Cámara / Escaneo: Visible únicamente si se está estudiando un libro propio */}
+        {activeCustomBook && (
+          <button
+            onClick={() => setIsCameraModalOpen(true)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border font-medium transition-colors cursor-pointer animate-in fade-in duration-200 ${
+              isDark
+                ? 'border-amber-800/80 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                : 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900'
+            }`}
+            title={`Tomar foto con la cámara y sumar capítulo a "${activeCustomBook.title}"`}
+          >
+            <Camera className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span className="hidden sm:inline font-semibold">
+              + Sumar Cap. {(activeCustomBook.chapters.length || 0) + 1}
+            </span>
+          </button>
+        )}
 
         {/* Acceso Rápido al Panel Léxico */}
         <button
@@ -285,10 +351,24 @@ export const Header: React.FC<HeaderProps> = ({
       <StudySidebarDrawer isOpen={isStudiesDrawerOpen} onClose={() => setIsStudiesDrawerOpen(false)} />
 
       {/* Modal de Transcripción con Cámara */}
-      <StudyCameraModal isOpen={isCameraModalOpen} onClose={() => setIsCameraModalOpen(false)} />
+      <StudyCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        targetCustomBookId={activeCustomBook?.id}
+        mode={activeCustomBook ? 'add-chapter' : 'default'}
+      />
 
       {/* Modal de Inicio de Sesión con Google */}
       <GoogleAuthModal />
+
+      {/* Modal de Descarga de App Web (PWA) */}
+      <DownloadAppModal isOpen={isDownloadAppOpen} onClose={() => setIsDownloadAppOpen(false)} />
+
+      {/* Modal para Subir Libro con Fotos & IA */}
+      <UploadBookModal isOpen={isUploadBookOpen} onClose={() => setIsUploadBookOpen(false)} />
+
+      {/* Modal de Búsqueda Inteligente con Filtros */}
+      <SmartSearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
     </header>
   );
 };

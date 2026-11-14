@@ -7,6 +7,7 @@ import { useThemeStore } from '../../store/useThemeStore';
 import { Study } from '../../types/study';
 import { CreateStudyModal } from './CreateStudyModal';
 import { StudyDetailModal } from './StudyDetailModal';
+import { SmartSearchModal } from '../search/SmartSearchModal';
 import {
   BookOpen,
   Plus,
@@ -20,7 +21,8 @@ import {
   FileText,
   Layers,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Filter
 } from 'lucide-react';
 
 interface StudySidebarDrawerProps {
@@ -45,6 +47,7 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
   const [selectedTag, setSelectedTag] = useState<string>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedStudyForDetail, setSelectedStudyForDetail] = useState<Study | null>(null);
+  const [isSmartSearchOpen, setIsSmartSearchOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -244,29 +247,45 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
           </button>
         </div>
 
-        {/* Buscador y Filtro por Etiquetas */}
+        {/* Buscador y Filtro Inteligente */}
         <div className={`p-3 border-b space-y-2 shrink-0 ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar por título o tema..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border focus:outline-none ${
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por título o tema..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border focus:outline-none ${
+                  isDark
+                    ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Botón de Filtro Inteligente en Modal Emergente */}
+            <button
+              onClick={() => setIsSmartSearchOpen(true)}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shrink-0 ${
                 isDark
-                  ? 'bg-slate-900 border-slate-800 text-white placeholder-slate-500'
-                  : 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400'
+                  ? 'bg-amber-950/60 border-amber-800/80 text-amber-300 hover:bg-amber-900/60'
+                  : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
               }`}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
+              title="Abrir buscador con filtros inteligentes por tipo, fechas o etiquetas"
+            >
+              <Filter className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline text-[11px]">Filtro</span>
+            </button>
           </div>
 
           {/* Filtro por Etiquetas */}
@@ -487,6 +506,13 @@ export const StudySidebarDrawer: React.FC<StudySidebarDrawerProps> = ({ isOpen, 
           setSelectedStudyForDetail(null);
           onClose();
         }}
+      />
+
+      {/* Modal de Búsqueda Inteligente con Filtros */}
+      <SmartSearchModal
+        isOpen={isSmartSearchOpen}
+        onClose={() => setIsSmartSearchOpen(false)}
+        initialTypeFilter="studies"
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useStudyStore } from '../../store/useStudyStore';
 import { useSketchbookStore } from '../../store/useSketchbookStore';
+import { useBibleStore } from '../../store/useBibleStore';
 import { geminiService, getGeminiApiKey, setGeminiApiKey } from '../../services/ai/geminiAIService';
 import {
   Camera,
@@ -15,13 +16,17 @@ import {
   X,
   Key,
   RotateCcw,
-  AlertCircle
+  AlertCircle,
+  BookOpen,
+  Plus
 } from 'lucide-react';
 
 interface StudyCameraModalProps {
   isOpen: boolean;
   onClose: () => void;
   onInserted?: (text: string) => void;
+  targetCustomBookId?: string | null;
+  mode?: 'default' | 'add-chapter' | 'new-custom-book';
 }
 
 /**
@@ -67,12 +72,35 @@ const compressImage = (file: File, maxDim = 1600, quality = 0.85): Promise<{ bas
   });
 };
 
-export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onClose, onInserted }) => {
+export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({
+  isOpen,
+  onClose,
+  onInserted,
+  targetCustomBookId,
+  mode = 'default'
+}) => {
   const { currentTheme } = useThemeStore();
   const { addTextBlockToActiveStudy, activeStudyId } = useStudyStore();
   const { addTextBlock } = useSketchbookStore();
+  const {
+    customBooks,
+    activeCustomBookId,
+    addChapterToCustomBook,
+    createCustomBook,
+    selectCustomBook
+  } = useBibleStore();
 
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
+
+  const resolvedBookId = targetCustomBookId || activeCustomBookId;
+  const currentCustomBook = customBooks.find((b) => b.id === resolvedBookId);
+  const nextChapterNum = currentCustomBook ? (currentCustomBook.chapters.length || 0) + 1 : 1;
+
+  const isAddChapterMode = mode === 'add-chapter' || (Boolean(resolvedBookId) && mode !== 'new-custom-book');
+  const isNewBookMode = mode === 'new-custom-book';
+
+  const [chapterTitle, setChapterTitle] = useState('');
+  const [newBookTitle, setNewBookTitle] = useState('');
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<{ base64: string; mimeType: string } | null>(null);
@@ -87,6 +115,13 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+
+  // Sincronizar título sugerido de capítulo cuando cambia el libro
+  useEffect(() => {
+    if (currentCustomBook) {
+      setChapterTitle(`Capítulo ${nextChapterNum}`);
+    }
+  }, [currentCustomBook, nextChapterNum]);
 
   // Bloquear scroll de fondo de la pantalla al estar abierto el modal
   useEffect(() => {
@@ -168,6 +203,40 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
     } catch {
       // Ignorar si no hay página abierta en sketchbook
     }
+
+    if (onInserted) {
+      onInserted(transcription);
+    }
+
+    setInserted(true);
+    setTimeout(() => {
+      onClose();
+      handleReset();
+    }, 1200);
+  };
+
+  const handleAddChapterToBook = () => {
+    if (!transcription || !currentCustomBook) return;
+    const finalTitle = chapterTitle.trim() || `Capítulo ${nextChapterNum}`;
+    addChapterToCustomBook(currentCustomBook.id, transcription, finalTitle);
+    selectCustomBook(currentCustomBook.id, nextChapterNum);
+
+    if (onInserted) {
+      onInserted(transcription);
+    }
+
+    setInserted(true);
+    setTimeout(() => {
+      onClose();
+      handleReset();
+    }, 1200);
+  };
+
+  const handleCreateNewCustomBook = () => {
+    if (!transcription) return;
+    const bookTitle = newBookTitle.trim() || 'Nuevo Libro de Estudio';
+    const newId = createCustomBook(bookTitle, transcription);
+    selectCustomBook(newId, 1);
 
     if (onInserted) {
       onInserted(transcription);
@@ -445,6 +514,41 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
                     </div>
                   )}
 
+                  {isAddChapterMode && currentCustomBook && (
+                    <div className="p-2.5 rounded-xl border bg-amber-500/10 border-amber-500/30 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>Sumando al libro: <strong>{currentCustomBook.title}</strong></span>
+                      </div>
+                      <input
+                        type="text"
+                        value={chapterTitle}
+                        onChange={(e) => setChapterTitle(e.target.value)}
+                        placeholder={`Ej: Capítulo ${nextChapterNum} - Título opcional`}
+                        className={`px-2.5 py-1 text-xs rounded-lg border font-medium focus:outline-none ${
+                          isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
+                        }`}
+                      />
+                    </div>
+                  )}
+
+                  {isNewBookMode && (
+                    <div className="p-2.5 rounded-xl border bg-amber-500/10 border-amber-500/30 flex flex-col gap-1.5">
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                        Título para tu nuevo libro propio:
+                      </span>
+                      <input
+                        type="text"
+                        value={newBookTitle}
+                        onChange={(e) => setNewBookTitle(e.target.value)}
+                        placeholder="Ej: Teología Sistemática / Notas Pastorales"
+                        className={`px-2.5 py-1 text-xs rounded-lg border font-medium focus:outline-none ${
+                          isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
+                        }`}
+                      />
+                    </div>
+                  )}
+
                   <textarea
                     value={transcription}
                     onChange={(e) => setTranscription(e.target.value)}
@@ -470,7 +574,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
         {/* Barra de Acciones Inferior */}
         {imagePreview ? (
           <div
-            className={`px-4 py-3 sm:px-6 sm:py-3.5 border-t flex items-center justify-between gap-2 shrink-0 ${
+            className={`px-4 py-3 sm:px-6 sm:py-3.5 border-t flex flex-wrap items-center justify-between gap-2 shrink-0 ${
               isDark ? 'bg-slate-950/95 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}
           >
@@ -496,7 +600,7 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
               )}
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={onClose}
                 className={`py-2 px-3 sm:px-3.5 rounded-xl border text-xs font-semibold transition-colors ${
@@ -508,23 +612,63 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({ isOpen, onCl
                 Cancelar
               </button>
 
-              <button
-                onClick={handleInsertIntoStudy}
-                disabled={!transcription || isProcessing || inserted}
-                className="py-2 px-3.5 sm:px-5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-md disabled:opacity-40 transition-all cursor-pointer"
-              >
-                {inserted ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>¡Insertado!</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    <span>Insertar en Estudio</span>
-                  </>
-                )}
-              </button>
+              {isAddChapterMode && currentCustomBook ? (
+                <button
+                  onClick={handleAddChapterToBook}
+                  disabled={!transcription || isProcessing || inserted}
+                  className="py-2 px-3.5 sm:px-5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-md disabled:opacity-40 transition-all cursor-pointer"
+                >
+                  {inserted ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>¡Capítulo {nextChapterNum} Guardado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>+ Sumar Cap. {nextChapterNum} a este Libro</span>
+                    </>
+                  )}
+                </button>
+              ) : isNewBookMode ? (
+                <button
+                  onClick={handleCreateNewCustomBook}
+                  disabled={!transcription || isProcessing || inserted}
+                  className="py-2 px-3.5 sm:px-5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-md disabled:opacity-40 transition-all cursor-pointer"
+                >
+                  {inserted ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>¡Libro Creado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="w-4 h-4" />
+                      <span>Guardar como Nuevo Libro Propio</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleInsertIntoStudy}
+                    disabled={!transcription || isProcessing || inserted}
+                    className="py-2 px-3.5 sm:px-5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-md disabled:opacity-40 transition-all cursor-pointer"
+                  >
+                    {inserted ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>¡Insertado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>Insertar en Estudio</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ) : (

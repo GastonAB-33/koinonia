@@ -25,10 +25,19 @@ export const BibleReader: React.FC = () => {
     currentVersion,
     parallelVersion,
     setParallelVersion,
-    isLoading
+    isLoading,
+    customBooks,
+    activeCustomBookId,
+    activeCustomChapterNum
   } = useBibleStore();
   const { currentTheme } = useThemeStore();
   const isMobile = useIsMobile();
+
+  const activeCustomBook = customBooks.find((b) => b.id === activeCustomBookId);
+  const currentCustomChapter =
+    activeCustomBook?.chapters.find((c) => c.chapter === activeCustomChapterNum) ||
+    activeCustomBook?.chapters[0];
+  const isStudyingCustomBook = Boolean(activeCustomBook && currentCustomChapter);
 
   const [selectedPhraseData, setSelectedPhraseData] = useState<{
     phrase: string;
@@ -268,16 +277,16 @@ export const BibleReader: React.FC = () => {
           <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
           <p className="text-sm font-medium">Cargando Sagradas Escrituras...</p>
         </div>
-      ) : !chapterData ? (
+      ) : !chapterData && !isStudyingCustomBook ? (
         <div className="h-full flex items-center justify-center text-slate-400 text-sm">
           Selecciona un libro y capítulo para comenzar la lectura.
         </div>
       ) : isParallelMode && isMobile ? (
         /* ========================================================================= */
-        /* MODO COMPARACIÓN EN MÓVIL: MITAD SUPERIOR (50%) + MITAD INFERIOR (50%)     */
+        /* MODO COMPARACIÓN / ACOMPAÑAMIENTO EN MÓVIL: MITAD SUP (50%) + INF (50%)    */
         /* ========================================================================= */
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* 1. Mitad Superior: Versión Primaria (50% de altura, scroll independiente) */}
+          {/* 1. Mitad Superior: Versión Primaria o Libro Propio (50% de altura) */}
           <div className="flex-1 h-1/2 flex flex-col overflow-hidden border-b border-amber-300/40 dark:border-slate-800">
             {/* Cabecera compacta de la versión superior */}
             <div
@@ -287,24 +296,30 @@ export const BibleReader: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <span className={`font-serif font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {chapterData.bookName} {chapterData.chapter}
+                  {isStudyingCustomBook
+                    ? `${activeCustomBook?.title} (Cap. ${currentCustomChapter?.chapter})`
+                    : `${chapterData?.bookName} ${chapterData?.chapter}`}
                 </span>
                 <span
                   className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    isDark
+                    isStudyingCustomBook
+                      ? 'text-purple-300 bg-purple-950/80 border border-purple-800/60'
+                      : isDark
                       ? 'text-amber-300 bg-amber-950/80 border border-amber-800/60'
                       : 'text-amber-800 bg-amber-100/90 border border-amber-200'
                   }`}
                 >
-                  {currentVersion}
+                  {isStudyingCustomBook ? 'Libro Propio' : currentVersion}
                 </span>
               </div>
               <span className="text-[11px] text-slate-400 font-sans">
-                {chapterData.verses.length} versículos
+                {isStudyingCustomBook
+                  ? `${currentCustomChapter?.paragraphs.length || 0} párrafos`
+                  : `${chapterData?.verses.length || 0} versículos`}
               </span>
             </div>
 
-            {/* Lista de versículos versión 1 (scroll sincronizado) */}
+            {/* Lista de versículos o párrafos (scroll sincronizado) */}
             <div
               ref={topScrollRef}
               className="flex-1 overflow-y-auto p-3.5 space-y-1 text-left leading-loose"
@@ -312,9 +327,30 @@ export const BibleReader: React.FC = () => {
               onTouchEnd={handleTextSelection}
               onScroll={handleTopScroll}
             >
-              {chapterData.verses.map((verse) => (
-                <VerseItem key={`top-v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
-              ))}
+              {isStudyingCustomBook ? (
+                currentCustomChapter?.paragraphs.map((p, idx) => (
+                  <div
+                    key={`custom-top-p-${idx}`}
+                    data-verse-ref={`${activeCustomBook?.id}-${currentCustomChapter.chapter}-${idx + 1}`}
+                    data-verse-book={activeCustomBook?.id}
+                    data-verse-chapter={currentCustomChapter.chapter}
+                    data-verse-num={idx + 1}
+                    data-verse-version="LIBRO"
+                    className="py-1 leading-relaxed group"
+                  >
+                    <sup className={`font-sans text-[11px] mr-1.5 select-none font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
+                      {idx + 1}
+                    </sup>
+                    <span className={`font-serif text-[17px] select-text ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                      {p}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                chapterData?.verses.map((verse) => (
+                  <VerseItem key={`top-v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
+                ))
+              )}
             </div>
           </div>
 
@@ -343,7 +379,7 @@ export const BibleReader: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <span className={`font-serif font-bold text-sm tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {parallelChapterData?.bookName || chapterData.bookName} {parallelChapterData?.chapter || chapterData.chapter}
+                  {parallelChapterData?.bookName || chapterData?.bookName || ''} {parallelChapterData?.chapter || chapterData?.chapter || ''}
                 </span>
 
                 {/* Selector rápido de versión secundaria */}
@@ -400,7 +436,7 @@ export const BibleReader: React.FC = () => {
           onScroll={handleScroll}
         >
           <div className={`max-w-6xl mx-auto ${isParallelMode ? 'grid grid-cols-1 md:grid-cols-2 gap-8' : 'max-w-3xl'}`}>
-            {/* Columna Principal / Versión Primaria */}
+            {/* Columna Principal / Versión Primaria o Libro Propio */}
             <div className="space-y-4">
               <div
                 className={`pb-3 border-b flex items-baseline justify-between ${
@@ -413,33 +449,62 @@ export const BibleReader: React.FC = () => {
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    {chapterData.bookName} {chapterData.chapter}
+                    {isStudyingCustomBook
+                      ? `${activeCustomBook?.title} — ${currentCustomChapter?.title}`
+                      : `${chapterData?.bookName} ${chapterData?.chapter}`}
                   </h2>
                   <span
                     className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-1 ${
-                      isDark
+                      isStudyingCustomBook
+                        ? 'text-purple-300 bg-purple-950/80 border border-purple-800/60'
+                        : isDark
                         ? 'text-amber-300 bg-amber-950/80 border border-amber-800/60'
                         : 'text-amber-700 bg-amber-100/70'
                     }`}
                   >
-                    {currentVersion}
+                    {isStudyingCustomBook ? 'Libro Propio (Fotos / IA)' : currentVersion}
                   </span>
                 </div>
                 <span className={`text-xs font-sans ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-                  {chapterData.verses.length} versículos
+                  {isStudyingCustomBook
+                    ? `${currentCustomChapter?.paragraphs.length || 0} párrafos`
+                    : `${chapterData?.verses.length || 0} versículos`}
                 </span>
               </div>
 
-              {/* Versículos de la columna principal */}
+              {/* Contenido de la columna principal */}
               <div className="text-left sm:text-justify leading-loose space-y-1">
-                {chapterData.verses.map((verse) => (
-                  <VerseItem key={`v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
-                ))}
+                {isStudyingCustomBook
+                  ? currentCustomChapter?.paragraphs.map((p, idx) => (
+                      <div
+                        key={`custom-desk-p-${idx}`}
+                        data-verse-ref={`${activeCustomBook?.id}-${currentCustomChapter.chapter}-${idx + 1}`}
+                        data-verse-book={activeCustomBook?.id}
+                        data-verse-chapter={currentCustomChapter.chapter}
+                        data-verse-num={idx + 1}
+                        data-verse-version="LIBRO"
+                        className="py-1.5 leading-relaxed group"
+                      >
+                        <sup
+                          className={`font-sans text-[11px] mr-2 select-none font-bold ${
+                            isDark ? 'text-purple-400' : 'text-purple-700'
+                          }`}
+                        >
+                          {idx + 1}
+                        </sup>
+                        <span className={`font-serif text-[18px] select-text ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                          {p}
+                        </span>
+                      </div>
+                    ))
+                  : chapterData?.verses.map((verse) => (
+                      <VerseItem key={`v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
+                    ))}
               </div>
             </div>
 
-            {/* Columna Secundaria / Modo Paralelo en Escritorio */}
-            {isParallelMode && parallelChapterData && (
+            {/* Columna Secundaria / Modo Paralelo o Acompañamiento Bíblico */}
+            {isParallelMode && (parallelChapterData || chapterData) && (
               <div
                 className={`space-y-4 border-t md:border-t-0 md:border-l md:pl-8 pt-6 md:pt-0 ${
                   isDark ? 'border-slate-800' : 'border-slate-200'
@@ -456,7 +521,8 @@ export const BibleReader: React.FC = () => {
                         isDark ? 'text-white' : 'text-slate-900'
                       }`}
                     >
-                      {parallelChapterData.bookName} {parallelChapterData.chapter}
+                      {isStudyingCustomBook ? 'Acompañamiento Bíblico: ' : ''}
+                      {(parallelChapterData || chapterData)?.bookName} {(parallelChapterData || chapterData)?.chapter}
                     </h2>
                     <span
                       className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-1 ${
@@ -465,17 +531,17 @@ export const BibleReader: React.FC = () => {
                           : 'text-blue-700 bg-blue-100/70'
                       }`}
                     >
-                      {parallelVersion} (Comparación)
+                      {parallelVersion} {isStudyingCustomBook ? '(Acompañamiento)' : '(Comparación)'}
                     </span>
                   </div>
                   <span className={`text-xs font-sans ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>
-                    {parallelChapterData.verses.length} versículos
+                    {(parallelChapterData || chapterData)?.verses.length || 0} versículos
                   </span>
                 </div>
 
-                {/* Versículos de la columna comparativa */}
+                {/* Versículos de la columna comparativa o de acompañamiento */}
                 <div className="text-left sm:text-justify leading-loose space-y-1">
-                  {parallelChapterData.verses.map((verse) => (
+                  {(parallelChapterData || chapterData)?.verses.map((verse) => (
                     <VerseItem key={`pv-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
                   ))}
                 </div>

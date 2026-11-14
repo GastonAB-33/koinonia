@@ -55,7 +55,13 @@ interface BibleState {
   activeCustomBookId: string | null;
   activeCustomChapterNum: number;
 
-  createCustomBook: (title: string, initialContent: string, author?: string) => string;
+  createCustomBook: (
+    title: string,
+    initialContentOrChapters: string | { title?: string; content: string }[],
+    author?: string,
+    description?: string,
+    tags?: string[]
+  ) => string;
   addChapterToCustomBook: (bookId: string, content: string, title?: string) => void;
   selectCustomBook: (bookId: string, chapterNum?: number) => void;
   setCustomChapter: (chapterNum: number) => void;
@@ -106,25 +112,62 @@ export const useBibleStore = create<BibleState>()(
       activeCustomBookId: null,
       activeCustomChapterNum: 1,
 
-      createCustomBook: (title: string, initialContent: string, author?: string) => {
+      createCustomBook: (
+        title: string,
+        initialContentOrChapters: string | { title?: string; content: string }[],
+        author?: string,
+        description?: string,
+        tags?: string[]
+      ) => {
         const id = `cb-${Date.now()}`;
-        const paragraphs = parseParagraphs(initialContent);
+        let chapters: CustomChapter[] = [];
+
+        if (Array.isArray(initialContentOrChapters)) {
+          chapters = initialContentOrChapters.map((ch, idx) => {
+            const paragraphs = parseParagraphs(ch.content);
+            return {
+              chapter: idx + 1,
+              title: ch.title?.trim() || `Capítulo ${idx + 1}`,
+              content: ch.content,
+              paragraphs: paragraphs.length ? paragraphs : [ch.content],
+              createdAt: new Date().toISOString()
+            };
+          });
+          if (chapters.length === 0) {
+            chapters = [
+              {
+                chapter: 1,
+                title: 'Capítulo 1',
+                content: '',
+                paragraphs: ['Sin contenido aún.'],
+                createdAt: new Date().toISOString()
+              }
+            ];
+          }
+        } else {
+          const paragraphs = parseParagraphs(initialContentOrChapters);
+          chapters = [
+            {
+              chapter: 1,
+              title: 'Capítulo 1',
+              content: initialContentOrChapters,
+              paragraphs: paragraphs.length ? paragraphs : [initialContentOrChapters],
+              createdAt: new Date().toISOString()
+            }
+          ];
+        }
+
         const newBook: CustomBook = {
           id,
           title: title.trim() || 'Mi Libro de Estudio',
           author: author?.trim() || 'Notas Propias',
+          description: description?.trim() || '',
+          tags: tags || ['Libro'],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          chapters: [
-            {
-              chapter: 1,
-              title: 'Capítulo 1',
-              content: initialContent,
-              paragraphs: paragraphs.length ? paragraphs : [initialContent],
-              createdAt: new Date().toISOString()
-            }
-          ]
+          chapters
         };
+
         set((state) => ({
           customBooks: [newBook, ...state.customBooks],
           activeCustomBookId: id,

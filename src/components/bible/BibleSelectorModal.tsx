@@ -12,8 +12,11 @@ import {
   ArrowLeft,
   Book,
   Sparkles,
-  Layers
+  Layers,
+  Camera,
+  Trash2
 } from 'lucide-react';
+import { StudyCameraModal } from '../study/StudyCameraModal';
 
 interface BibleSelectorModalProps {
   isOpen: boolean;
@@ -21,7 +24,7 @@ interface BibleSelectorModalProps {
 }
 
 type SelectorStep = 'book' | 'chapter' | 'verse';
-type TestamentFilter = 'ALL' | 'OT' | 'NT';
+type TestamentFilter = 'ALL' | 'OT' | 'NT' | 'CUSTOM';
 
 export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, onClose }) => {
   const {
@@ -29,7 +32,12 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
     currentBookId,
     currentChapterNum,
     currentVersion,
-    navigateToVerse
+    navigateToVerse,
+    customBooks,
+    activeCustomBookId,
+    selectCustomBook,
+    exitCustomBook,
+    deleteCustomBook
   } = useBibleStore();
 
   const { currentTheme } = useThemeStore();
@@ -38,9 +46,15 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
   const [step, setStep] = useState<SelectorStep>('book');
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
-  const [testamentFilter, setTestamentFilter] = useState<TestamentFilter>('ALL');
+  const [testamentFilter, setTestamentFilter] = useState<TestamentFilter>(
+    activeCustomBookId ? 'CUSTOM' : 'ALL'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [cameraTargetBookId, setCameraTargetBookId] = useState<string | null>(null);
+  const [cameraMode, setCameraMode] = useState<'default' | 'add-chapter' | 'new-custom-book'>('default');
 
   // Al abrir el modal, sincronizar con el libro y capítulo actuales del lector
   useEffect(() => {
@@ -118,6 +132,7 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
 
   // Acciones de navegación
   const handleSelectBook = (book: BibleBook) => {
+    exitCustomBook();
     setSelectedBook(book);
     setSelectedChapter(1);
     setStep('chapter');
@@ -130,12 +145,14 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
 
   const handleOpenEntireChapter = async (chapterNum: number) => {
     if (!selectedBook) return;
+    exitCustomBook();
     await navigateToVerse(selectedBook.id, chapterNum, 1);
     onClose();
   };
 
   const handleSelectVerse = async (verseNum: number) => {
     if (!selectedBook) return;
+    exitCustomBook();
     await navigateToVerse(selectedBook.id, selectedChapter, verseNum);
     onClose();
   };
@@ -341,6 +358,19 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
                   <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
                   <span>Nuevo Testamento ({books.filter((b) => b.testament === 'NT').length})</span>
                 </button>
+                <button
+                  onClick={() => setTestamentFilter('CUSTOM')}
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                    testamentFilter === 'CUSTOM'
+                      ? isDark
+                        ? 'bg-purple-950/80 text-purple-300 border border-purple-800/60 shadow-sm font-bold'
+                        : 'bg-white text-purple-900 shadow-sm font-bold'
+                      : 'hover:text-purple-500'
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                  <span>Mis Libros ({customBooks.length}) 📚</span>
+                </button>
               </div>
 
               {/* Caja de Búsqueda */}
@@ -427,6 +457,124 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3">
                         {ntBooks.map((book) => renderBookCard(book))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CASO 4: Mis Libros Propios de Estudio (visible en 'ALL' y en 'CUSTOM') */}
+                  {(testamentFilter === 'ALL' || testamentFilter === 'CUSTOM') && (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between pb-2 mb-3 border-b border-purple-500/20">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+                          <h4 className="font-bold text-xs sm:text-sm tracking-wider uppercase text-purple-600 dark:text-purple-400">
+                            Mis Libros Propios (Estudio con Fotos / IA)
+                          </h4>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-bold bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300">
+                            {customBooks.length} {customBooks.length === 1 ? 'libro' : 'libros'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setCameraTargetBookId(null);
+                            setCameraMode('new-custom-book');
+                            setIsCameraModalOpen(true);
+                          }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                            isDark
+                              ? 'bg-purple-950/80 border-purple-700 text-purple-300 hover:bg-purple-900'
+                              : 'bg-purple-100 border-purple-300 text-purple-800 hover:bg-purple-200'
+                          }`}
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>+ Subir Nuevo Libro</span>
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        {customBooks.map((cb) => {
+                          const isActive = cb.id === activeCustomBookId;
+                          return (
+                            <div
+                              key={cb.id}
+                              className={`p-3.5 rounded-2xl border transition-all ${
+                                isActive
+                                  ? isDark
+                                    ? 'border-purple-500 bg-purple-950/50 ring-1 ring-purple-500 shadow-lg'
+                                    : 'border-purple-500 bg-purple-50/70 ring-1 ring-purple-500 shadow-sm'
+                                  : isDark
+                                  ? 'border-slate-800 bg-slate-800/60 hover:border-slate-700'
+                                  : 'border-slate-200 bg-white hover:border-purple-200 shadow-xs'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <BookOpen className="w-4 h-4 text-purple-500 shrink-0" />
+                                    <h5 className="font-bold text-sm truncate" title={cb.title}>
+                                      {cb.title}
+                                    </h5>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                                    {cb.author || 'Notas y fotos propias'} • {cb.chapters.length} {cb.chapters.length === 1 ? 'capítulo' : 'capítulos'}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`¿Eliminar el libro "${cb.title}"?`)) {
+                                      deleteCustomBook(cb.id);
+                                    }
+                                  }}
+                                  className="text-slate-400 hover:text-rose-400 p-1 rounded-lg transition-colors cursor-pointer"
+                                  title="Eliminar este libro"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+
+                              {/* Capítulos disponibles de este libro */}
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                                {cb.chapters.map((ch) => (
+                                  <button
+                                    key={`ch-${cb.id}-${ch.chapter}`}
+                                    onClick={() => {
+                                      selectCustomBook(cb.id, ch.chapter);
+                                      onClose();
+                                    }}
+                                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                      isActive && activeCustomBookId === cb.id && useBibleStore.getState().activeCustomChapterNum === ch.chapter
+                                        ? 'bg-purple-600 text-white shadow-xs'
+                                        : isDark
+                                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                                        : 'bg-purple-100 hover:bg-purple-200 text-purple-900'
+                                    }`}
+                                    title={ch.title || `Capítulo ${ch.chapter}`}
+                                  >
+                                    Cap. {ch.chapter}
+                                  </button>
+                                ))}
+
+                                <button
+                                  onClick={() => {
+                                    setCameraTargetBookId(cb.id);
+                                    setCameraMode('add-chapter');
+                                    setIsCameraModalOpen(true);
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 transition-colors cursor-pointer ${
+                                    isDark
+                                      ? 'border-amber-700/80 bg-amber-950/60 text-amber-300 hover:bg-amber-900/60'
+                                      : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                  }`}
+                                  title={`Sumar Capítulo ${(cb.chapters.length || 0) + 1} con foto`}
+                                >
+                                  <Camera className="w-3 h-3 text-amber-500" />
+                                  <span>+ Cap. {(cb.chapters.length || 0) + 1}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -584,6 +732,13 @@ export const BibleSelectorModal: React.FC<BibleSelectorModalProps> = ({ isOpen, 
           </div>
         )}
       </div>
+
+      <StudyCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        targetCustomBookId={cameraTargetBookId}
+        mode={cameraMode}
+      />
     </div>
   );
 

@@ -3,6 +3,9 @@ import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { BibleSelectorModal } from '../bible/BibleSelectorModal';
 import { StudyCameraModal } from '../study/StudyCameraModal';
+import { DownloadAppModal } from '../pwa/DownloadAppModal';
+import { UploadBookModal } from '../book/UploadBookModal';
+import { SmartSearchModal } from '../search/SmartSearchModal';
 import { GoogleLogo } from '../auth/GoogleLogo';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
@@ -20,7 +23,9 @@ import {
   Camera,
   Sparkles,
   LogOut,
-  Heart
+  Heart,
+  BookPlus,
+  Filter
 } from 'lucide-react';
 
 interface MobileMenuViewProps {
@@ -53,6 +58,9 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
+  const [isUploadBookOpen, setIsUploadBookOpen] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -245,11 +253,17 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
           </div>
 
           <button
-            onClick={handleInstallClick}
+            onClick={() => {
+              if (deferredPrompt) {
+                handleInstallClick();
+              } else {
+                setIsDownloadModalOpen(true);
+              }
+            }}
             className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            <span>{deferredPrompt ? 'Instalar App Ahora' : '¿Cómo descargarla en tu cel?'}</span>
+            <span>Descargar App Web (PWA)</span>
           </button>
 
           {showInstallGuide && !deferredPrompt && (
@@ -360,30 +374,69 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
           </button>
         </div>
 
-        {/* Búsqueda Bíblica (Mock Próximamente) */}
+        {/* Búsqueda Inteligente con Filtros en Móvil */}
         <div
-          className={`p-4 rounded-2xl border shadow-xs space-y-2.5 opacity-80 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          onClick={() => setIsSearchModalOpen(true)}
+          className={`p-4 rounded-2xl border shadow-xs space-y-2.5 transition-all cursor-pointer ${
+            isDark ? 'bg-slate-900 border-slate-800 hover:border-amber-500/70' : 'bg-white border-slate-200 hover:border-amber-400'
           }`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-slate-400" />
-              <span className="font-bold text-xs text-slate-400 uppercase tracking-wider">Búsqueda Bíblica</span>
+              <Search className="w-4 h-4 text-amber-500" />
+              <span className="font-bold text-xs uppercase tracking-wider text-slate-300">
+                Búsqueda Inteligente
+              </span>
             </div>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-500">
-              Próximamente
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-1">
+              <Filter className="w-2.5 h-2.5" /> Con Filtros
             </span>
           </div>
 
           <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs text-slate-400 cursor-not-allowed ${
-              isDark ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-100/70 border-slate-200'
+            className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
+              isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
             }`}
           >
-            <Search className="w-3.5 h-3.5" />
-            <span>Buscar palabra o tema (ej. gracia, pacto, fe)...</span>
+            <div className="flex items-center gap-2 truncate">
+              <Search className="w-3.5 h-3.5 text-amber-500" />
+              <span className="truncate">Buscar por estudios, libros, fechas o tags...</span>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           </div>
+        </div>
+
+        {/* Tarjeta de Subir Libro con Fotos & IA */}
+        <div
+          onClick={() => setIsUploadBookOpen(true)}
+          className={`p-4 rounded-2xl border shadow-sm space-y-2.5 transition-colors cursor-pointer ${
+            isDark
+              ? 'bg-gradient-to-br from-slate-900 to-amber-950/40 border-amber-900/60 hover:border-amber-500'
+              : 'bg-gradient-to-br from-white to-amber-50 border-amber-200/90 hover:border-amber-400'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
+                <BookPlus className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xs">Subir Libro (Fotos + IA)</h3>
+                <p className="text-[11px] text-slate-400">Fotografía varias páginas y crea un libro digital</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 shrink-0">
+              Nuevo
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+          >
+            <BookPlus className="w-3.5 h-3.5" />
+            <span>Subir Fotos de Libro Ahora</span>
+          </button>
         </div>
 
         {/* Marcadores y Versículos Destacados */}
@@ -540,6 +593,24 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
       <StudyCameraModal
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}
+      />
+
+      {/* Modal de Descarga de App Web (PWA) */}
+      <DownloadAppModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+      />
+
+      {/* Modal para Subir Libro con Fotos & IA */}
+      <UploadBookModal
+        isOpen={isUploadBookOpen}
+        onClose={() => setIsUploadBookOpen(false)}
+      />
+
+      {/* Modal de Búsqueda Inteligente con Filtros */}
+      <SmartSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
       />
     </div>
   );

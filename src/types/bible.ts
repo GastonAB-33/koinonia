@@ -66,6 +66,7 @@ export interface CustomBook {
   title: string;
   author?: string;
   description?: string;
+  tags?: string[];
   chapters: CustomChapter[];
   createdAt: string;
   updatedAt: string;
