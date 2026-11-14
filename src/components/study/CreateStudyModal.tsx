@@ -109,7 +109,7 @@ export const CreateStudyModal: React.FC<CreateStudyModalProps> = ({
   };
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Enter' || e.key === ',' || (e.key === ' ' && tagInput.trim().length > 1)) {
       e.preventDefault();
       handleAddTag();
     } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
@@ -290,6 +290,9 @@ export const CreateStudyModal: React.FC<CreateStudyModalProps> = ({
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleTagKeyDown}
+                    onBlur={() => {
+                      if (tagInput.trim()) handleAddTag();
+                    }}
                     placeholder={tags.length === 0 ? 'Escribe una etiqueta...' : '+ Añadir otra...'}
                     className={`flex-1 px-2 py-1 bg-transparent text-xs focus:outline-none ${
                       isDark ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'

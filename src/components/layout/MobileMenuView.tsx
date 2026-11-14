@@ -1,31 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useStudyStore } from '../../store/useStudyStore';
+import { useSketchbookStore } from '../../store/useSketchbookStore';
+import { useCanvasStore } from '../../store/useCanvasStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { Study } from '../../types/study';
+
 import { BibleSelectorModal } from '../bible/BibleSelectorModal';
 import { StudyCameraModal } from '../study/StudyCameraModal';
 import { DownloadAppModal } from '../pwa/DownloadAppModal';
 import { UploadBookModal } from '../book/UploadBookModal';
 import { SmartSearchModal } from '../search/SmartSearchModal';
+import { CreateStudyModal } from '../study/CreateStudyModal';
+import { StudyDetailModal } from '../study/StudyDetailModal';
 import { GoogleLogo } from '../auth/GoogleLogo';
-import { useAuthStore } from '../../store/useAuthStore';
+
 import {
   BookOpen,
+  BookMarked,
+  Plus,
   Search,
-  Bookmark,
-  ArrowRight,
-  Columns,
-  Palette,
-  CheckCircle2,
-  Clock,
   Download,
-  Smartphone,
-  Share2,
-  Camera,
-  Sparkles,
+  BookPlus,
+  FileText,
+  Layers,
+  Tag,
+  ArrowRight,
   LogOut,
   Heart,
-  BookPlus,
-  Filter
+  Palette,
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 
 interface MobileMenuViewProps {
@@ -35,14 +41,20 @@ interface MobileMenuViewProps {
 
 export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onGoToStudy }) => {
   const {
-    books,
-    currentBookId,
-    currentChapterNum,
-    highlights,
-    isParallelMode,
-    toggleParallelMode
+    customBooks,
+    selectCustomBook
   } = useBibleStore();
+
+  const {
+    studies,
+    activeStudyId,
+    setActiveStudyId
+  } = useStudyStore();
+
+  const { getStudyData } = useSketchbookStore();
+  const { canvasByStudy } = useCanvasStore();
   const { currentTheme, setTheme } = useThemeStore();
+
   const {
     user,
     partnerUser,
@@ -54,13 +66,16 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
   } = useAuthStore();
   const activeUser = getActiveUser();
 
+  // Modales
   const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isUploadBookOpen, setIsUploadBookOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isCreateStudyOpen, setIsCreateStudyOpen] = useState(false);
+  const [selectedStudyForDetail, setSelectedStudyForDetail] = useState<Study | null>(null);
+
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -79,11 +94,10 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
         setDeferredPrompt(null);
       }
     } else {
-      setShowInstallGuide((prev) => !prev);
+      setIsDownloadModalOpen(true);
     }
   };
 
-  const currentBook = books.find((b) => b.id === currentBookId);
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
 
   return (
@@ -92,28 +106,28 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
         isDark ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-800'
       }`}
     >
-      {/* Cabecera del Menú */}
+      {/* 1. Cabecera Principal de Navegación: Sección 1: Menú Principal (Mis Estudios) */}
       <div
-        className={`px-4 py-3.5 border-b flex items-center justify-between shrink-0 sticky top-0 z-10 backdrop-blur-md ${
-          isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-slate-200'
+        className={`px-4 py-3 border-b flex items-center justify-between shrink-0 sticky top-0 z-20 backdrop-blur-md shadow-xs ${
+          isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-200'
         }`}
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white shadow-sm">
-            <BookOpen className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-500 flex items-center justify-center text-white shadow-md shrink-0">
+            <BookMarked className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-serif font-bold text-base tracking-tight">Koinonía</h1>
+              <h1 className="font-serif font-bold text-base tracking-tight">Mis Estudios</h1>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30">
-                Menú
+                {studies.length}
               </span>
             </div>
-            <span className="text-[11px] text-slate-400 block -mt-0.5">Exploración & Biblioteca</span>
+            <span className="text-[11px] text-slate-400 block -mt-0.5">Menú Principal de Koinonía</span>
           </div>
         </div>
 
-        {/* Botón para volver a la Biblia */}
+        {/* Acceso directo a Sección Lectura */}
         <button
           onClick={onGoToBible}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors border ${
@@ -121,373 +135,333 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
               ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500'
               : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700'
           }`}
-          title="Ir al lector bíblico"
+          title="Ir a la Sección Lectura (Biblia y Libros)"
         >
           <span>Lectura</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Contenido del Menú */}
-      <div className="p-4 space-y-4 max-w-lg mx-auto w-full pb-20">
-        {/* Tarjeta de Cuenta & Inicio de Sesión con Google */}
-        {user ? (
-          <div
-            className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
-              isDark
-                ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800'
-                : 'bg-gradient-to-br from-white to-slate-50 border-slate-200'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="relative shrink-0">
-                  {activeUser?.picture ? (
-                    <img
-                      src={activeUser.picture}
-                      alt={activeUser.name}
-                      className="w-11 h-11 rounded-2xl object-cover ring-2 ring-emerald-500/40"
-                    />
-                  ) : (
-                    <div
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base text-white shadow-sm ${
-                        activeRole === 'partner'
-                          ? 'bg-gradient-to-tr from-purple-600 to-purple-500'
-                          : 'bg-gradient-to-tr from-amber-600 to-amber-500'
-                      }`}
-                    >
-                      {(activeUser?.name || user.name).charAt(0).toUpperCase()}
+      {/* 2. Barra Superior de Acciones Rápidas (Descargar App, Subir Libro, Buscar con Filtros) */}
+      <div
+        className={`p-2.5 px-4 border-b flex items-center gap-2 shrink-0 overflow-x-auto ${
+          isDark ? 'bg-slate-900/50 border-slate-800/80' : 'bg-amber-50/40 border-amber-200/50'
+        }`}
+      >
+        {/* BOTÓN 1: DESCARGAR APP */}
+        <button
+          onClick={handleInstallClick}
+          className={`flex-1 min-w-[105px] py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+            isDark
+              ? 'border-blue-800/70 bg-blue-950/40 hover:bg-blue-900/50 text-blue-300'
+              : 'border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-950'
+          }`}
+          title="Instalar Koinonía en pantalla completa en tu dispositivo móvil"
+        >
+          <Download className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+          <span className="truncate">Descargar App</span>
+        </button>
+
+        {/* BOTÓN 2: SUBIR LIBRO (FOTOS + IA) */}
+        <button
+          onClick={() => setIsUploadBookOpen(true)}
+          className={`flex-1 min-w-[105px] py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+            isDark
+              ? 'border-amber-700/70 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300'
+              : 'border-amber-200 bg-amber-50/80 hover:bg-amber-100 text-amber-950'
+          }`}
+          title="Fotografiar hojas o libros y transcribirlos con IA"
+        >
+          <BookPlus className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span className="truncate">Subir Libro</span>
+        </button>
+
+        {/* BOTÓN 3: BUSCADOR INTELIGENTE CON FILTROS */}
+        <button
+          onClick={() => setIsSearchModalOpen(true)}
+          className={`flex-1 min-w-[105px] py-2 px-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs ${
+            isDark
+              ? 'border-purple-800/70 bg-purple-950/40 hover:bg-purple-900/50 text-purple-300'
+              : 'border-purple-200 bg-purple-50/80 hover:bg-purple-100 text-purple-950'
+          }`}
+          title="Buscador con filtro inteligente por estudios, libros, fechas o etiquetas"
+        >
+          <Search className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+          <span className="truncate">Buscar...</span>
+        </button>
+      </div>
+
+      {/* 3. Contenido Principal */}
+      <div className="p-4 space-y-5 max-w-lg mx-auto w-full pb-24">
+        {/* ========================================================================= */}
+        {/* SECCIÓN PRINCIPAL: LISTA DE MIS ESTUDIOS CON BADGES Y MODAL EMERGENTE   */}
+        {/* ========================================================================= */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookMarked className="w-4 h-4 text-amber-500" />
+              <h2 className="font-bold text-sm tracking-tight">Tus Estudios Bíblicos</h2>
+              <span className="text-[11px] font-semibold text-slate-400">({studies.length})</span>
+            </div>
+
+            {/* BOTÓN "+ NUEVO ESTUDIO" CON MODAL EMERGENTE */}
+            <button
+              onClick={() => setIsCreateStudyOpen(true)}
+              className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-950/20 active:scale-98 transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nuevo Estudio</span>
+            </button>
+          </div>
+
+          {/* Tarjetas de Estudios */}
+          <div className="space-y-2.5">
+            {studies.map((study) => {
+              const isActive = study.id === activeStudyId;
+              const sketchbookData = getStudyData(study.id);
+              const pageCount = sketchbookData?.pages?.length || 1;
+              const textBlockCount = study.blocks?.length || 0;
+              const nodeCount = canvasByStudy[study.id]?.nodes?.length || 0;
+              const tagsCount = study.tags?.length || 0;
+
+              return (
+                <div
+                  key={study.id}
+                  onClick={() => setSelectedStudyForDetail(study)}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group shadow-2xs ${
+                    isActive
+                      ? isDark
+                        ? 'bg-gradient-to-br from-slate-900 to-amber-950/30 border-amber-600/80 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/40'
+                        : 'bg-gradient-to-br from-amber-50/90 to-orange-50/40 border-amber-400/90 shadow-xs ring-1 ring-amber-400/40'
+                      : isDark
+                      ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                      : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <h3 className="font-bold text-sm leading-snug line-clamp-2">
+                          {study.title}
+                        </h3>
+                        {isActive && (
+                          <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-500 text-slate-950 shadow-2xs shrink-0">
+                            En uso
+                          </span>
+                        )}
+                      </div>
+
+                      {study.description && (
+                        <p className="text-xs text-slate-400 dark:text-slate-400 line-clamp-2 mb-2 leading-relaxed">
+                          {study.description}
+                        </p>
+                      )}
+
+                      {/* Iconitos de métricas solicitados: páginas, notas, nodos y etiquetas */}
+                      <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                        <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
+                          <BookOpen className="w-3 h-3 text-amber-500" />
+                          <span>{pageCount} {pageCount === 1 ? 'pág' : 'págs'}</span>
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
+                          <FileText className="w-3 h-3 text-emerald-500" />
+                          <span>{textBlockCount} {textBlockCount === 1 ? 'nota' : 'notas'}</span>
+                        </span>
+
+                        {nodeCount > 0 && (
+                          <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
+                            <Layers className="w-3 h-3 text-blue-500" />
+                            <span>{nodeCount} {nodeCount === 1 ? 'nodo' : 'nodos'}</span>
+                          </span>
+                        )}
+
+                        {tagsCount > 0 && (
+                          <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                            <Tag className="w-3 h-3 text-purple-500" />
+                            <span>{tagsCount} {tagsCount === 1 ? 'tag' : 'tags'}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+
+                    <div className="p-1.5 rounded-xl text-slate-400 group-hover:text-amber-500 shrink-0 self-center">
+                      <ChevronRight className="w-5 h-5" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SECCIÓN LIBROS PROPIOS (Subidos con fotos e IA)                           */}
+        {/* ========================================================================= */}
+        {customBooks.length > 0 && (
+          <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookPlus className="w-4 h-4 text-orange-500" />
+                <h2 className="font-bold text-sm tracking-tight">Tus Libros Digitalizados con IA</h2>
+                <span className="text-[11px] font-semibold text-slate-400">({customBooks.length})</span>
+              </div>
+              <button
+                onClick={() => setIsUploadBookOpen(true)}
+                className="text-xs font-bold text-amber-500 hover:underline"
+              >
+                + Subir Otro
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {customBooks.map((book) => (
+                <div
+                  key={book.id}
+                  onClick={() => {
+                    selectCustomBook(book.id, 1);
+                    onGoToBible();
+                  }}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 shadow-2xs ${
+                    isDark
+                      ? 'bg-slate-900 border-slate-800 hover:border-orange-500/60'
+                      : 'bg-white border-slate-200 hover:border-orange-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-xs truncate">{book.title}</h4>
+                      <p className="text-[11px] text-slate-400 truncate">
+                        {book.author} · {book.chapters.length} {book.chapters.length === 1 ? 'capítulo' : 'capítulos'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                      Leer
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* SECCIÓN DE CUENTA / GOOGLE SIGN IN & MODO PAREJA                         */}
+        {/* ========================================================================= */}
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+          {user ? (
+            <div
+              className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
+                isDark
+                  ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800'
+                  : 'bg-gradient-to-br from-white to-slate-50 border-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative shrink-0">
+                    {activeUser?.picture ? (
+                      <img
+                        src={activeUser.picture}
+                        alt={activeUser.name}
+                        className="w-11 h-11 rounded-2xl object-cover ring-2 ring-emerald-500/40"
+                      />
+                    ) : (
+                      <div
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base text-white shadow-sm ${
+                          activeRole === 'partner'
+                            ? 'bg-gradient-to-tr from-purple-600 to-purple-500'
+                            : 'bg-gradient-to-tr from-amber-600 to-amber-500'
+                        }`}
+                      >
+                        {(activeUser?.name || user.name).charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="font-bold text-sm truncate">{activeUser?.name || user.name}</h3>
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-0.5">
+                        <GoogleLogo className="w-2.5 h-2.5" /> Google
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 truncate">{activeUser?.email || user.email}</p>
+                  </div>
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="font-bold text-sm truncate">{activeUser?.name || user.name}</h3>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-0.5">
-                      <GoogleLogo className="w-2.5 h-2.5" /> Google
+                <button
+                  onClick={logout}
+                  className={`p-2 rounded-xl text-slate-400 hover:text-rose-500 transition-colors ${
+                    isDark ? 'hover:bg-rose-950/40' : 'hover:bg-rose-50'
+                  }`}
+                  title="Cerrar sesión"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modo Pareja */}
+              {partnerUser && (
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-rose-500" />
+                    <span>
+                      Autor activo: <strong>{activeRole === 'partner' ? partnerUser.name : user.givenName || user.name}</strong>
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 truncate">{activeUser?.email || user.email}</p>
+                  <button
+                    onClick={switchActiveProfile}
+                    className={`text-[11px] font-bold px-2 py-1 rounded-lg border transition-colors ${
+                      isDark
+                        ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-purple-300'
+                        : 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-800'
+                    }`}
+                  >
+                    Cambiar autor
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
+                isDark
+                  ? 'bg-gradient-to-br from-slate-900 to-amber-950/30 border-amber-900/50'
+                  : 'bg-gradient-to-br from-white to-amber-50/70 border-amber-200/80'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
+                  <GoogleLogo className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xs">Tu Cuenta Koinonía</h3>
+                  <p className="text-[11px] text-slate-400">Inicia sesión con Google para sincronizar tus notas y autoría</p>
                 </div>
               </div>
 
               <button
-                onClick={logout}
-                className={`p-2 rounded-xl text-slate-400 hover:text-rose-500 transition-colors ${
-                  isDark ? 'hover:bg-rose-950/40' : 'hover:bg-rose-50'
-                }`}
-                title="Cerrar sesión"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
               >
-                <LogOut className="w-4 h-4" />
+                <GoogleLogo className="w-4 h-4" />
+                <span>Iniciar Sesión con Google</span>
               </button>
-            </div>
-
-            {/* Alternador de Modo Pareja en Móvil */}
-            {partnerUser && (
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                  <Heart className="w-3 h-3 text-rose-500" />
-                  <span>Autor activo: <strong>{activeRole === 'partner' ? partnerUser.name : user.givenName || user.name}</strong></span>
-                </div>
-                <button
-                  onClick={switchActiveProfile}
-                  className={`text-[11px] font-bold px-2 py-1 rounded-lg border transition-colors ${
-                    isDark
-                      ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-purple-300'
-                      : 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-800'
-                  }`}
-                >
-                  Cambiar autor
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div
-            className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
-              isDark
-                ? 'bg-gradient-to-br from-slate-900 to-amber-950/30 border-amber-900/50'
-                : 'bg-gradient-to-br from-white to-amber-50/70 border-amber-200/80'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center shrink-0">
-                <GoogleLogo className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-xs">Tu Cuenta Koinonía</h3>
-                <p className="text-[11px] text-slate-400">Inicia sesión con Google para sincronizar tus notas y autoría</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-            >
-              <GoogleLogo className="w-4 h-4" />
-              <span>Iniciar Sesión con Google</span>
-            </button>
-          </div>
-        )}
-
-        {/* Tarjeta de Instalación PWA para Móvil */}
-        <div
-          className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
-            isDark
-              ? 'bg-gradient-to-br from-slate-900 to-indigo-950/40 border-indigo-900/60'
-              : 'bg-gradient-to-br from-white to-amber-50/50 border-amber-200/80'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                <Smartphone className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-bold text-xs">Instalar Koinonía en tu Celular</h3>
-                <p className="text-[11px] text-slate-400">Úsala a pantalla completa como una app nativa</p>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              if (deferredPrompt) {
-                handleInstallClick();
-              } else {
-                setIsDownloadModalOpen(true);
-              }
-            }}
-            className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>Descargar App Web (PWA)</span>
-          </button>
-
-          {showInstallGuide && !deferredPrompt && (
-            <div
-              className={`p-3 rounded-xl border text-xs space-y-2.5 animate-in fade-in duration-150 ${
-                isDark ? 'bg-slate-950/80 border-slate-800 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700'
-              }`}
-            >
-              <div className="space-y-1">
-                <p className="font-bold flex items-center gap-1.5 text-amber-500">
-                  <span>📱 En Android (Google Chrome):</span>
-                </p>
-                <p className="text-[11px] leading-relaxed pl-4">
-                  1. Toca los <strong>3 puntos (⋮)</strong> arriba a la derecha de Chrome.<br />
-                  2. Selecciona <strong>"Instalar aplicación"</strong> o <strong>"Agregar a la pantalla principal"</strong>.
-                </p>
-              </div>
-
-              <div className="space-y-1 pt-1.5 border-t border-slate-700/40">
-                <p className="font-bold flex items-center gap-1.5 text-blue-400">
-                  <span>🍎 En iPhone / iPad (Safari):</span>
-                </p>
-                <p className="text-[11px] leading-relaxed pl-4">
-                  1. Toca el botón <strong>Compartir</strong> (icono de cuadrado con flecha hacia arriba <Share2 className="w-3 h-3 inline" />).<br />
-                  2. Desliza hacia abajo y pulsa <strong>"Agregar al inicio"</strong>.
-                </p>
-              </div>
             </div>
           )}
         </div>
 
-        {/* Tarjeta de Escaneo con Cámara e IA */}
-        <div
-          className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
-            isDark
-              ? 'bg-gradient-to-br from-slate-900 to-amber-950/40 border-amber-900/60'
-              : 'bg-gradient-to-br from-white to-amber-50 border-amber-200/90'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
-                <Camera className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-xs">Escanear Notas o Libros</h3>
-                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-0.5">
-                    <Sparkles className="w-2.5 h-2.5" /> IA Gemini
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400">Toma una foto a tus notas y digitalízalas al instante</p>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setIsCameraModalOpen(true)}
-            className="w-full py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-          >
-            <Camera className="w-4 h-4" />
-            <span>Abrir Cámara / Escáner</span>
-          </button>
-        </div>
-        {/* Banner de En Desarrollo */}
-        <div
-          className={`p-3.5 rounded-2xl border flex items-start gap-3 shadow-xs ${
-            isDark
-              ? 'bg-amber-950/30 border-amber-800/50 text-amber-200'
-              : 'bg-amber-50 border-amber-200/80 text-amber-900'
-          }`}
-        >
-          <Clock className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" />
-          <div className="text-xs space-y-1">
-            <p className="font-bold">Módulo de Menú en desarrollo</p>
-            <p className="text-[11px] opacity-80 leading-relaxed">
-              Pronto podrás acceder a planes de lectura, comentarios exegéticos y concordancia completa desde aquí.
-            </p>
-          </div>
-        </div>
-
-        {/* Acceso Rápido al Selector de Libros y Capítulos */}
-        <div
-          className={`p-4 rounded-2xl border shadow-xs space-y-3 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-amber-500" />
-              <span className="font-bold text-xs uppercase tracking-wider text-slate-400">Lectura Actual</span>
-            </div>
-            <span className="text-xs font-bold text-amber-500">
-              {currentBook?.name || 'Génesis'} {currentChapterNum}
-            </span>
-          </div>
-
-          <button
-            onClick={() => setIsBookPickerOpen(true)}
-            className={`w-full py-2.5 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
-              isDark
-                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white'
-                : 'bg-amber-50/70 hover:bg-amber-100/70 border-amber-200 text-amber-950'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Cambiar Libro o Capítulo</span>
-          </button>
-        </div>
-
-        {/* Búsqueda Inteligente con Filtros en Móvil */}
-        <div
-          onClick={() => setIsSearchModalOpen(true)}
-          className={`p-4 rounded-2xl border shadow-xs space-y-2.5 transition-all cursor-pointer ${
-            isDark ? 'bg-slate-900 border-slate-800 hover:border-amber-500/70' : 'bg-white border-slate-200 hover:border-amber-400'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-amber-500" />
-              <span className="font-bold text-xs uppercase tracking-wider text-slate-300">
-                Búsqueda Inteligente
-              </span>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center gap-1">
-              <Filter className="w-2.5 h-2.5" /> Con Filtros
-            </span>
-          </div>
-
-          <div
-            className={`flex items-center justify-between px-3 py-2 rounded-xl border text-xs ${
-              isDark ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
-            }`}
-          >
-            <div className="flex items-center gap-2 truncate">
-              <Search className="w-3.5 h-3.5 text-amber-500" />
-              <span className="truncate">Buscar por estudios, libros, fechas o tags...</span>
-            </div>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          </div>
-        </div>
-
-        {/* Tarjeta de Subir Libro con Fotos & IA */}
-        <div
-          onClick={() => setIsUploadBookOpen(true)}
-          className={`p-4 rounded-2xl border shadow-sm space-y-2.5 transition-colors cursor-pointer ${
-            isDark
-              ? 'bg-gradient-to-br from-slate-900 to-amber-950/40 border-amber-900/60 hover:border-amber-500'
-              : 'bg-gradient-to-br from-white to-amber-50 border-amber-200/90 hover:border-amber-400'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                <BookPlus className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-bold text-xs">Subir Libro (Fotos + IA)</h3>
-                <p className="text-[11px] text-slate-400">Fotografía varias páginas y crea un libro digital</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30 shrink-0">
-              Nuevo
-            </span>
-          </div>
-
-          <button
-            type="button"
-            className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-          >
-            <BookPlus className="w-3.5 h-3.5" />
-            <span>Subir Fotos de Libro Ahora</span>
-          </button>
-        </div>
-
-        {/* Marcadores y Versículos Destacados */}
-        <div
-          className={`p-4 rounded-2xl border shadow-xs space-y-2 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bookmark className="w-4 h-4 text-emerald-500" />
-              <span className="font-bold text-xs uppercase tracking-wider text-slate-400">Tus Versículos</span>
-            </div>
-            <span className="text-xs font-bold text-emerald-500">{highlights.length} destacados</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-            Todos tus versículos subrayados y notas en el texto bíblico quedan guardados automáticamente.
-          </p>
-        </div>
-
-        {/* Modo de Comparación Rápido */}
-        <div
-          className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            <Columns className="w-4 h-4 text-blue-500" />
-            <div>
-              <span className="font-bold text-xs block">Comparación Bíblica</span>
-              <span className="text-[11px] text-slate-400 block">Mitad superior e inferior</span>
-            </div>
-          </div>
-
-          <button
-            onClick={toggleParallelMode}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
-              isParallelMode
-                ? isDark
-                  ? 'bg-blue-600 text-white border-blue-500'
-                  : 'bg-blue-600 text-white border-blue-700'
-                : isDark
-                ? 'bg-slate-800 text-slate-400 border-slate-700'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
-            }`}
-          >
-            {isParallelMode ? 'Activada' : 'Desactivada'}
-          </button>
-        </div>
-
-        {/* Selector de Temas Visuales */}
+        {/* ========================================================================= */}
+        {/* SECCIÓN APARIENCIA & TEMAS VISUALES                                       */}
+        {/* ========================================================================= */}
         <div
           className={`p-4 rounded-2xl border shadow-xs space-y-2.5 ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
@@ -495,7 +469,7 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
         >
           <div className="flex items-center gap-2">
             <Palette className="w-4 h-4 text-purple-500" />
-            <span className="font-bold text-xs uppercase tracking-wider text-slate-400">Apariencia</span>
+            <span className="font-bold text-xs uppercase tracking-wider text-slate-400">Apariencia del Cuaderno</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -546,71 +520,84 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
           </div>
         </div>
 
-        {/* Guía de Gestos / Accesos Rápidos */}
-        <div
-          className={`p-3.5 rounded-2xl border text-xs text-center space-y-1.5 ${
-            isDark ? 'bg-slate-900/50 border-slate-800/80 text-slate-400' : 'bg-slate-100/70 border-slate-200/80 text-slate-600'
-          }`}
-        >
-          <p className="font-semibold text-slate-500 dark:text-slate-300">Navegación por deslizamiento:</p>
-          <p className="text-[11px]">👈 <strong>Deslizar de derecha a izquierda:</strong> Avanzar a Lectura Bíblica y Herramientas</p>
-          <p className="text-[11px]">👉 <strong>Deslizar de izquierda a derecha:</strong> Retroceder a este Menú</p>
-        </div>
-
-        {/* Botones de acción directa */}
-        <div className="grid grid-cols-2 gap-2 pt-2">
+        {/* Accesos directos a las otras dos secciones */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
           <button
             onClick={onGoToBible}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm border ${
-              isDark
-                ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500'
-                : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-600'
-            }`}
+            className="py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
           >
-            <span>Ir a la Biblia</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Sección Lectura</span>
           </button>
           <button
             onClick={onGoToStudy}
-            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm border ${
+            className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm border transition-all ${
               isDark
                 ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
                 : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
             }`}
           >
-            <span>Herramientas 📓</span>
+            <FileText className="w-3.5 h-3.5 text-amber-500" />
+            <span>Sección Estudio</span>
           </button>
         </div>
       </div>
 
-      {/* Modal Portaleado del selector de Libros y Capítulos */}
-      <BibleSelectorModal
-        isOpen={isBookPickerOpen}
-        onClose={() => setIsBookPickerOpen(false)}
+      {/* ========================================================================= */}
+      {/* MODALES PORTALEADOS                                                      */}
+      {/* ========================================================================= */}
+
+      {/* 1. Modal para Crear Nuevo Estudio Bíblico */}
+      <CreateStudyModal
+        isOpen={isCreateStudyOpen}
+        onClose={() => setIsCreateStudyOpen(false)}
+        onCreated={(newId) => {
+          setActiveStudyId(newId);
+          setIsCreateStudyOpen(false);
+          onGoToStudy();
+        }}
       />
 
-      {/* Modal de Transcripción con Cámara */}
-      <StudyCameraModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
+      {/* 2. Modal Detalle Emergente de Estudio Bíblico */}
+      <StudyDetailModal
+        study={selectedStudyForDetail}
+        isOpen={Boolean(selectedStudyForDetail)}
+        onClose={() => setSelectedStudyForDetail(null)}
+        onSelectAndOpen={(studyId) => {
+          setActiveStudyId(studyId);
+          setSelectedStudyForDetail(null);
+          onGoToStudy();
+        }}
       />
 
-      {/* Modal de Descarga de App Web (PWA) */}
+      {/* 3. Modal de Descarga de App Web (PWA) */}
       <DownloadAppModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
       />
 
-      {/* Modal para Subir Libro con Fotos & IA */}
+      {/* 4. Modal para Subir Libro con Fotos & IA */}
       <UploadBookModal
         isOpen={isUploadBookOpen}
         onClose={() => setIsUploadBookOpen(false)}
       />
 
-      {/* Modal de Búsqueda Inteligente con Filtros */}
+      {/* 5. Modal de Búsqueda Inteligente con Filtros */}
       <SmartSearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
+      />
+
+      {/* 6. Modal Selector de Libros Bíblicos */}
+      <BibleSelectorModal
+        isOpen={isBookPickerOpen}
+        onClose={() => setIsBookPickerOpen(false)}
+      />
+
+      {/* 7. Modal de Cámara / Escáner directo */}
+      <StudyCameraModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
       />
     </div>
   );

@@ -9,6 +9,10 @@ interface StudyState {
   studies: Study[];
   activeStudyId: string;
 
+  // Navegación en móvil: 'menu' (Mis Estudios) | 'bible' (Lectura) | 'study' (Estudio)
+  mobileView: 'menu' | 'bible' | 'study';
+  setMobileView: (view: 'menu' | 'bible' | 'study') => void;
+
   // Acciones
   getActiveStudy: () => Study | undefined;
   setActiveStudyId: (id: string) => void;
@@ -161,6 +165,11 @@ export const useStudyStore = create<StudyState>()(
     (set, get) => ({
       studies: INITIAL_STUDIES,
       activeStudyId: 'study-genesis-juan',
+      mobileView: 'bible',
+
+      setMobileView: (view) => {
+        set({ mobileView: view });
+      },
 
       getActiveStudy: () => {
         return get().studies.find((s) => s.id === get().activeStudyId) || get().studies[0];

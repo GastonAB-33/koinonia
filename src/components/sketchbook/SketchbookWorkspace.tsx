@@ -34,6 +34,7 @@ export const SketchbookWorkspace: React.FC = () => {
     updateTextBlock,
     deleteTextBlock,
     activeDrawingTool,
+    setActiveDrawingTool,
     selectedBlockId,
     setSelectedBlockId,
     setActiveFontFamily,
@@ -47,6 +48,11 @@ export const SketchbookWorkspace: React.FC = () => {
   const activePage = getActivePage(activeStudyId);
   const [dimensions, setDimensions] = useState({ width: 950, height: 1400 });
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+
+  // Al montar o ingresar a la sección de estudio, activar siempre el puntero para evitar rayones involuntarios
+  useEffect(() => {
+    setActiveDrawingTool('select');
+  }, [setActiveDrawingTool]);
 
   const toggleEditBlock = (blockId: string) => {
     setEditingBlockId((prev) => (prev === blockId ? null : blockId));

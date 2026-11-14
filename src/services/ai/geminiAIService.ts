@@ -4,47 +4,80 @@ import { MockAIService } from './mockAIService';
 
 const STORAGE_KEY = 'koinonia_gemini_api_key';
 
-const CANDIDATE_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-exp',
-  'gemini-1.5-flash-latest',
+export interface WorkingCandidate {
+  apiVersion: 'v1' | 'v1beta';
+  model: string;
+}
+
+const PREFERRED_ORDER = [
   'gemini-1.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash-exp',
   'gemini-1.5-pro'
 ];
 
-let cachedWorkingModel: string | null = null;
+const DEFAULT_FALLBACK_CANDIDATES: WorkingCandidate[] = [
+  { apiVersion: 'v1', model: 'gemini-1.5-flash' },
+  { apiVersion: 'v1beta', model: 'gemini-1.5-flash' },
+  { apiVersion: 'v1beta', model: 'gemini-2.0-flash' },
+  { apiVersion: 'v1', model: 'gemini-1.5-flash-8b' },
+  { apiVersion: 'v1beta', model: 'gemini-2.0-flash-exp' },
+  { apiVersion: 'v1', model: 'gemini-1.5-pro' },
+  { apiVersion: 'v1beta', model: 'gemini-1.5-pro' }
+];
 
-async function getCandidateModels(apiKey: string): Promise<string[]> {
-  if (cachedWorkingModel) {
-    return [cachedWorkingModel, ...CANDIDATE_MODELS.filter((m) => m !== cachedWorkingModel)];
+let cachedWorkingCandidate: WorkingCandidate | null = null;
+
+async function getCandidateEndpoints(apiKey: string): Promise<WorkingCandidate[]> {
+  if (cachedWorkingCandidate) {
+    return [
+      cachedWorkingCandidate,
+      ...DEFAULT_FALLBACK_CANDIDATES.filter(
+        (c) => !(c.apiVersion === cachedWorkingCandidate!.apiVersion && c.model === cachedWorkingCandidate!.model)
+      )
+    ];
   }
 
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data?.models)) {
-        const supported: string[] = data.models
-          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-          .map((m: any) => m.name.replace(/^models\//, ''));
+  const discovered: WorkingCandidate[] = [];
 
-        const preferred = CANDIDATE_MODELS.find((candidate) => supported.includes(candidate));
-        if (preferred) {
-          cachedWorkingModel = preferred;
-          return [preferred, ...supported.filter((m) => m !== preferred)];
-        }
-        if (supported.length > 0) {
-          cachedWorkingModel = supported[0];
-          return supported;
+  // Consultar endpoints de listado en v1 y v1beta
+  for (const apiVersion of ['v1', 'v1beta'] as const) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/${apiVersion}/models?key=${apiKey}`, {
+        headers: { 'x-goog-api-key': apiKey }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.models)) {
+          const supported = data.models
+            .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+            .map((m: any) => m.name.replace(/^models\//, ''));
+
+          for (const model of supported) {
+            discovered.push({ apiVersion, model });
+          }
         }
       }
+    } catch {
+      // Ignorar y seguir al siguiente endpoint
     }
-  } catch (e) {
-    console.warn('[GeminiAIService] No se pudo obtener la lista dinámica de modelos:', e);
   }
 
-  return CANDIDATE_MODELS;
+  if (discovered.length > 0) {
+    discovered.sort((a, b) => {
+      const indexA = PREFERRED_ORDER.indexOf(a.model);
+      const indexB = PREFERRED_ORDER.indexOf(b.model);
+      const scoreA = indexA >= 0 ? indexA : 999;
+      const scoreB = indexB >= 0 ? indexB : 999;
+      return scoreA - scoreB;
+    });
+
+    cachedWorkingCandidate = discovered[0];
+    return discovered;
+  }
+
+  return DEFAULT_FALLBACK_CANDIDATES;
 }
 
 /**
@@ -67,8 +100,10 @@ export function setGeminiApiKey(key: string): void {
   if (typeof window === 'undefined') return;
   if (!key || !key.trim()) {
     localStorage.removeItem(STORAGE_KEY);
+    cachedWorkingCandidate = null;
   } else {
     localStorage.setItem(STORAGE_KEY, key.trim());
+    cachedWorkingCandidate = null;
   }
 }
 
@@ -88,15 +123,18 @@ export class GeminiAIService implements IAIService {
       return { success: false, message: 'No se ha proporcionado ninguna API Key.' };
     }
 
-    const models = await getCandidateModels(key);
+    const candidates = await getCandidateEndpoints(key);
     let lastError = '';
 
-    for (const model of models) {
+    for (const candidate of candidates) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+        const url = `https://generativelanguage.googleapis.com/${candidate.apiVersion}/models/${candidate.model}:generateContent?key=${key}`;
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': key
+          },
           body: JSON.stringify({
             contents: [
               {
@@ -112,8 +150,11 @@ export class GeminiAIService implements IAIService {
         });
 
         if (response.ok) {
-          cachedWorkingModel = model;
-          return { success: true, message: `¡Conexión exitosa con Google Gemini AI (${model})!` };
+          cachedWorkingCandidate = candidate;
+          return {
+            success: true,
+            message: `¡Conexión exitosa con Google Gemini (${candidate.model} en ${candidate.apiVersion})!`
+          };
         }
 
         const errorData = await response.json().catch(() => ({}));
@@ -155,11 +196,14 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
   "crossReferences": ["Referencia bíblica 1", "Referencia bíblica 2", "Referencia bíblica 3"]
 }`;
 
-    const tryCallModel = async (model: string) => {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const tryCallModel = async (candidate: WorkingCandidate) => {
+      const url = `https://generativelanguage.googleapis.com/${candidate.apiVersion}/models/${candidate.model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
         body: JSON.stringify({
           contents: [
             {
@@ -176,7 +220,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.error?.message || `Error ${response.status} de Gemini (${model})`);
+        throw new Error(errorData?.error?.message || `Error ${response.status} de Gemini (${candidate.model})`);
       }
 
       const data = await response.json();
@@ -187,13 +231,13 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
       return JSON.parse(cleanJson);
     };
 
-    const models = await getCandidateModels(apiKey);
+    const candidates = await getCandidateEndpoints(apiKey);
     let lastError: any = null;
 
-    for (const model of models) {
+    for (const candidate of candidates) {
       try {
-        const parsed = await tryCallModel(model);
-        cachedWorkingModel = model;
+        const parsed = await tryCallModel(candidate);
+        cachedWorkingCandidate = candidate;
 
         const langLower = String(parsed.language || '').toLowerCase();
         const normalizedLang =
@@ -214,7 +258,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
         };
       } catch (err) {
         lastError = err;
-        console.warn(`[GeminiAIService] Falló ${model}:`, err);
+        console.warn(`[GeminiAIService] Falló ${candidate.model} en ${candidate.apiVersion}:`, err);
       }
     }
 
@@ -229,14 +273,17 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
       return this.mockFallback.suggestCrossReferences(topicOrVerse);
     }
 
-    const models = await getCandidateModels(apiKey);
+    const candidates = await getCandidateEndpoints(apiKey);
 
-    for (const model of models) {
+    for (const candidate of candidates) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/${candidate.apiVersion}/models/${candidate.model}:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
           body: JSON.stringify({
             contents: [
               {
@@ -259,7 +306,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
         const data = await response.json();
         const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         const cleanJson = rawText.replace(/```json\n?|```/g, '').trim();
-        cachedWorkingModel = model;
+        cachedWorkingCandidate = candidate;
         return JSON.parse(cleanJson);
       } catch {
         continue;
@@ -299,19 +346,22 @@ INSTRUCCIONES CLAVE:
    - Usa negritas (*término*) para conceptos centrales.
 5. NO agregues saludos ni comentarios explicativos como "Aquí tienes la transcripción", entrega directamente el texto formateado del estudio bíblico listo para ser leído y editado.`;
 
-    const tryCallVision = async (model: string) => {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const tryCallVision = async (candidate: WorkingCandidate) => {
+      const url = `https://generativelanguage.googleapis.com/${candidate.apiVersion}/models/${candidate.model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
         body: JSON.stringify({
           contents: [
             {
               role: 'user',
               parts: [
                 {
-                  inlineData: {
-                    mimeType: mimeType || 'image/jpeg',
+                  inline_data: {
+                    mime_type: mimeType || 'image/jpeg',
                     data: cleanBase64
                   }
                 },
@@ -329,7 +379,9 @@ INSTRUCCIONES CLAVE:
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData?.error?.message || `Error ${response.status} de Gemini (${model})`);
+        throw new Error(
+          errorData?.error?.message || `Error ${response.status} de Gemini (${candidate.model} en ${candidate.apiVersion})`
+        );
       }
 
       const data = await response.json();
@@ -338,23 +390,23 @@ INSTRUCCIONES CLAVE:
       return rawText.trim();
     };
 
-    const models = await getCandidateModels(apiKey);
+    const candidates = await getCandidateEndpoints(apiKey);
     let lastError: any = null;
 
-    for (const model of models) {
+    for (const candidate of candidates) {
       try {
-        const result = await tryCallVision(model);
-        cachedWorkingModel = model;
+        const result = await tryCallVision(candidate);
+        cachedWorkingCandidate = candidate;
         return result;
       } catch (err: any) {
         lastError = err;
-        console.warn(`[GeminiAIService] Falló visión con ${model}:`, err);
+        console.warn(`[GeminiAIService] Falló visión con ${candidate.model} en ${candidate.apiVersion}:`, err);
       }
     }
 
     console.warn('[GeminiAIService] Falló la llamada de visión a Gemini, recurriendo a Mock:', lastError);
     const fallback = await this.mockFallback.transcribeStudyImage(base64Data, mimeType, customPrompt);
-    return `${fallback}\n\n*(Nota de respaldo: Transcripción simulada generada porque falló la conexión con la clave de IA: ${lastError?.message || 'Error de modelos'})*`;
+    return `${fallback}\n\n*(Nota de respaldo: Transcripción simulada generada porque falló la conexión con la clave de IA: ${lastError?.message || 'Error de modelos'}). Puedes verificar tu API Key de Google AI Studio en el botón "Configurar Clave".*`;
   }
 }
 

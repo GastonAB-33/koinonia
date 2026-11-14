@@ -258,14 +258,14 @@ Página #${i + 1} del libro "${title.trim()}".`;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[190] flex flex-col justify-end sm:justify-center sm:items-center sm:p-4 bg-slate-950/90 backdrop-blur-md overflow-hidden animate-in fade-in duration-150"
+      className="fixed inset-0 z-[99999] flex flex-col justify-start sm:justify-center sm:items-center sm:p-4 bg-black/95 sm:bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-150"
       style={{ touchAction: 'none' }}
       onClick={(e) => {
         if (e.target === e.currentTarget && step !== 'transcribing') handleResetAndClose();
       }}
     >
       <div
-        className={`w-full max-h-[95dvh] sm:max-h-[90vh] sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border-t sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
+        className={`w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl rounded-none sm:rounded-3xl border-0 sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
           isDark
             ? 'bg-slate-900 border-slate-700 text-white shadow-black/90'
             : 'bg-white border-slate-200 text-slate-800 shadow-2xl'

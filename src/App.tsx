@@ -3,11 +3,18 @@ import { Header } from './components/layout/Header';
 import { ResizableLayout, ResizableLayoutHandle } from './components/layout/ResizableLayout';
 import { LexiconDrawer } from './components/lexicon/LexiconDrawer';
 import { useThemeStore } from './store/useThemeStore';
+import { useSketchbookStore } from './store/useSketchbookStore';
 
 export const App: React.FC = () => {
   const [rightPanelTab, setRightPanelTab] = useState<'editor' | 'freebook' | 'sketchbook' | 'canvas'>('sketchbook');
   const layoutRef = useRef<ResizableLayoutHandle>(null);
   const { currentTheme } = useThemeStore();
+  const { setActiveDrawingTool } = useSketchbookStore();
+
+  const handleSetRightPanelTab = (tab: 'editor' | 'freebook' | 'sketchbook' | 'canvas') => {
+    setActiveDrawingTool('select');
+    setRightPanelTab(tab);
+  };
 
   const handleLayoutPreset = (preset: 'left-only' | 'split-50' | 'right-only') => {
     layoutRef.current?.setPreset(preset);
@@ -25,7 +32,7 @@ export const App: React.FC = () => {
       {/* Barra de cabecera superior moderna con selector de temas y pestañas */}
       <Header
         rightPanelTab={rightPanelTab}
-        setRightPanelTab={setRightPanelTab}
+        setRightPanelTab={handleSetRightPanelTab}
         onLayoutPreset={handleLayoutPreset}
       />
 
@@ -33,7 +40,7 @@ export const App: React.FC = () => {
       <ResizableLayout
         ref={layoutRef}
         rightPanelTab={rightPanelTab}
-        setRightPanelTab={setRightPanelTab}
+        setRightPanelTab={handleSetRightPanelTab}
       />
 
       {/* Drawer lateral para estudio léxico en Hebreo y Griego (Mock Gemini) */}

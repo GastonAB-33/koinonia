@@ -1,4 +1,4 @@
-import { useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle, ImperativePanelHandle } from 'react-resizable-panels';
 import { BibleReader } from '../bible/BibleReader';
 import { StudyEditor } from '../study/StudyEditor';
@@ -6,9 +6,11 @@ import { InfiniteCanvas } from '../canvas/InfiniteCanvas';
 import { FreeBookWorkspace } from '../freebook/FreeBookWorkspace';
 import { SketchbookWorkspace } from '../sketchbook/SketchbookWorkspace';
 import { MobileMenuView } from './MobileMenuView';
-import { MobileNavigationBar, MobileNavView } from './MobileNavigationBar';
+import { MobileNavigationBar } from './MobileNavigationBar';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useStudyStore } from '../../store/useStudyStore';
+import { useSketchbookStore } from '../../store/useSketchbookStore';
 import { GripVertical, ArrowLeft, BookMarked, FileText, Palette } from 'lucide-react';
 
 export interface ResizableLayoutHandle {
@@ -27,10 +29,17 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     const { currentTheme } = useThemeStore();
     const isMobile = useIsMobile();
 
-    // Estado de la vista activa en móvil: 'menu' (0) | 'bible' (1) | 'study' (2)
-    const [mobileView, setMobileView] = useState<MobileNavView>('bible');
+    // Estado de la vista activa en móvil desde useStudyStore: 'menu' (Mis Estudios) | 'bible' (Lectura) | 'study' (Estudio)
+    const { mobileView, setMobileView } = useStudyStore();
 
     const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
+
+    // Al navegar a la sección de estudio en móvil o escritorio, seleccionar siempre la herramienta puntero
+    useEffect(() => {
+      if (mobileView === 'study') {
+        useSketchbookStore.getState().setActiveDrawingTool('select');
+      }
+    }, [mobileView]);
 
     // Manejo de gestos táctiles de deslizamiento (Swipe)
     const touchStartX = useRef<number | null>(null);
@@ -176,10 +185,10 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
                         ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-slate-200'
                         : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
                     }`}
-                    title="Volver a la Biblia"
+                    title="Volver a la Sección Lectura"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Biblia</span>
+                    <span>Lectura</span>
                   </button>
 
                   {/* Selector de pestañas de estudio */}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
-import { Menu, BookOpen, BookMarked, FileText, Palette } from 'lucide-react';
+import { BookOpen, BookMarked, FileText, Palette } from 'lucide-react';
 
 export type MobileNavView = 'menu' | 'bible' | 'study';
 
@@ -35,30 +35,30 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
           : 'bg-white/95 backdrop-blur-md border-slate-200/90 text-slate-800'
       }`}
     >
-      {/* 1. Botón Menú (Izquierda) */}
+      {/* 1. Botón Menú Principal (Mis Estudios) (Izquierda) */}
       <button
         type="button"
         onClick={() => onViewChange('menu')}
         className={`flex-1 py-1 px-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all ${
           activeView === 'menu'
             ? isDark
-              ? 'bg-slate-800 text-amber-400 font-bold shadow-xs'
-              : 'bg-amber-100/70 text-amber-900 font-bold shadow-xs'
+              ? 'bg-amber-600 text-white font-bold shadow-md'
+              : 'bg-amber-600 text-white font-bold shadow-md'
             : isDark
             ? 'text-slate-400 hover:text-white'
             : 'text-slate-500 hover:text-slate-900'
         }`}
-        title="Abrir Menú (deslizar izquierda)"
+        title="Menú Principal: Mis Estudios y Biblioteca"
       >
-        <Menu className="w-4 h-4" />
-        <span className="text-[10px] tracking-tight">Menú</span>
+        <BookMarked className="w-4 h-4" />
+        <span className="text-[10px] tracking-tight">Mis Estudios</span>
       </button>
 
-      {/* 2. Botón Lector Bíblico (Centro) */}
+      {/* 2. Botón Sección Lectura (Centro) */}
       <button
         type="button"
         onClick={() => onViewChange('bible')}
-        className={`flex-[1.2] py-1 px-3 rounded-2xl flex flex-col items-center justify-center gap-0.5 relative transition-all ${
+        className={`flex-[1.1] py-1 px-3 rounded-2xl flex flex-col items-center justify-center gap-0.5 relative transition-all ${
           activeView === 'bible'
             ? isDark
               ? 'bg-amber-600 text-white font-bold shadow-md'
@@ -67,7 +67,7 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
             ? 'text-slate-400 hover:text-white'
             : 'text-slate-500 hover:text-slate-900'
         }`}
-        title="Lector Bíblico"
+        title="Sección Lectura: Biblia y Libros"
       >
         <div className="flex items-center gap-1">
           <BookOpen className="w-4 h-4" />
@@ -78,40 +78,34 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
                   ? 'bg-white/25 text-white'
                   : 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-300'
               }`}
-              title="Modo Comparación activo (Mitad superior / inferior)"
+              title="Modo Comparación activo"
             >
               1/2
             </span>
           )}
         </div>
         <span className="text-[10px] tracking-tight">
-          {isParallelMode ? 'Comparación' : 'Biblia'}
+          {isParallelMode ? 'Comparación' : 'Lectura'}
         </span>
       </button>
 
-      {/* 3. Botón Herramientas de Estudio (Derecha) */}
+      {/* 3. Botón Sección Estudio (Derecha) */}
       <button
         type="button"
         onClick={() => onViewChange('study')}
         className={`flex-1 py-1 px-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all ${
           activeView === 'study'
             ? isDark
-              ? 'bg-slate-800 text-amber-400 font-bold shadow-xs'
-              : 'bg-amber-100/70 text-amber-900 font-bold shadow-xs'
+              ? 'bg-amber-600 text-white font-bold shadow-md'
+              : 'bg-amber-600 text-white font-bold shadow-md'
             : isDark
             ? 'text-slate-400 hover:text-white'
             : 'text-slate-500 hover:text-slate-900'
         }`}
-        title="Herramientas de Estudio (deslizar derecha)"
+        title="Sección Estudio: Cuaderno, Notas y Pizarra"
       >
         <StudyIcon className="w-4 h-4" />
-        <span className="text-[10px] tracking-tight">
-          {rightPanelTab === 'sketchbook'
-            ? 'Sketchbook'
-            : rightPanelTab === 'editor'
-            ? 'Cuaderno'
-            : 'Pizarra'}
-        </span>
+        <span className="text-[10px] tracking-tight">Estudio</span>
       </button>
     </div>
   );

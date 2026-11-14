@@ -112,6 +112,8 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({
   const [hasKey, setHasKey] = useState(() => Boolean(getGeminiApiKey()));
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [tempKey, setTempKey] = useState(() => getGeminiApiKey());
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [keyTestFeedback, setKeyTestFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -253,18 +255,35 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({
     setGeminiApiKey(tempKey.trim());
     setHasKey(Boolean(tempKey.trim()));
     setShowKeyInput(false);
+    setKeyTestFeedback(null);
+  };
+
+  const handleTestKey = async () => {
+    if (!tempKey.trim()) return;
+    setIsTestingKey(true);
+    setKeyTestFeedback(null);
+    try {
+      const result = await geminiService.testConnection(tempKey.trim());
+      setKeyTestFeedback(result);
+      if (result.success) {
+        setGeminiApiKey(tempKey.trim());
+        setHasKey(true);
+      }
+    } finally {
+      setIsTestingKey(false);
+    }
   };
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center sm:items-center sm:p-4 bg-slate-950/95 backdrop-blur-md overflow-hidden animate-in fade-in duration-150"
+      className="fixed inset-0 z-[99999] flex flex-col justify-start sm:justify-center sm:items-center sm:p-4 bg-black/95 sm:bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-150"
       style={{ touchAction: 'none' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className={`w-full h-[95dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl rounded-t-3xl sm:rounded-3xl border-t sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
+        className={`w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl rounded-none sm:rounded-3xl border-0 sm:border flex flex-col overflow-hidden shadow-2xl transition-all ${
           isDark
             ? 'bg-slate-900 border-slate-700 text-white shadow-black/90'
             : 'bg-white border-slate-200 text-slate-800 shadow-2xl'
@@ -380,23 +399,46 @@ export const StudyCameraModal: React.FC<StudyCameraModalProps> = ({
               <label className="font-semibold block text-[11px] text-slate-400">
                 Pega tu Gemini API Key (obtenida gratis en Google AI Studio):
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="password"
                   value={tempKey}
                   onChange={(e) => setTempKey(e.target.value)}
                   placeholder="AIzaSy..."
-                  className={`flex-1 px-3 py-1.5 rounded-xl border text-xs focus:outline-none ${
+                  className={`flex-1 px-3 py-2 rounded-xl border text-xs focus:outline-none ${
                     isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-800'
                   }`}
                 />
-                <button
-                  onClick={handleSaveKey}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-xs"
-                >
-                  Guardar
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleTestKey}
+                    disabled={isTestingKey || !tempKey.trim()}
+                    className="flex-1 sm:flex-none px-3 py-2 rounded-xl border border-slate-600 hover:bg-slate-700/50 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {isTestingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
+                    <span>Probar</span>
+                  </button>
+                  <button
+                    onClick={handleSaveKey}
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-xs"
+                  >
+                    Guardar
+                  </button>
+                </div>
               </div>
+
+              {keyTestFeedback && (
+                <div
+                  className={`p-2 rounded-xl text-[11px] font-medium border flex items-center gap-1.5 ${
+                    keyTestFeedback.success
+                      ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
+                      : 'bg-rose-950/40 border-rose-800 text-rose-300'
+                  }`}
+                >
+                  {keyTestFeedback.success ? <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />}
+                  <span>{keyTestFeedback.message}</span>
+                </div>
+              )}
             </div>
           )}
 

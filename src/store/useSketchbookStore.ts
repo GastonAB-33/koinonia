@@ -173,7 +173,7 @@ export const useSketchbookStore = create<SketchbookStoreState>()(
       activeItalic: false,
       activeTextColor: '#1e293b',
 
-      activeDrawingTool: 'pen',
+      activeDrawingTool: 'select',
       activeStrokeColor: '#88804B', // Paleta solicitada
       activeStrokeWidth: 3,
 

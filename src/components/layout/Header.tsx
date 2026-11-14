@@ -11,6 +11,7 @@ import { SmartSearchModal } from '../search/SmartSearchModal';
 import { UserProfileMenu } from '../auth/UserProfileMenu';
 import { GoogleAuthModal } from '../auth/GoogleAuthModal';
 import { ThemeDropdown } from './ThemeDropdown';
+import { useIsMobile } from '../../hooks/useMediaQuery';
 import {
   BookOpen,
   Menu,
@@ -41,7 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   setRightPanelTab,
   onLayoutPreset
 }) => {
-  const { getActiveStudy, studies } = useStudyStore();
+  const isMobile = useIsMobile();
+  const { getActiveStudy, studies, setMobileView } = useStudyStore();
   const { openLexicon } = useLexiconStore();
   const { currentTheme } = useThemeStore();
   const { activeCustomBookId, customBooks } = useBibleStore();
@@ -80,7 +82,13 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-2 sm:gap-3">
         {/* BOTÓN PRINCIPAL PARA ABRIR EL MENÚ LATERAL IZQUIERDO DE ESTUDIOS */}
         <button
-          onClick={() => setIsStudiesDrawerOpen(true)}
+          onClick={() => {
+            if (isMobile) {
+              setMobileView('menu');
+            } else {
+              setIsStudiesDrawerOpen(true);
+            }
+          }}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-xs cursor-pointer ${
             isDark
               ? 'bg-amber-950/80 hover:bg-amber-900 border-amber-800/80 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
@@ -141,10 +149,16 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Selector Central de Estudio Activo (Clic abre el menú lateral izquierdo) */}
+      {/* Selector Central de Estudio Activo (Clic abre el menú lateral izquierdo o Menú Principal) */}
       <div className="hidden md:flex items-center">
         <button
-          onClick={() => setIsStudiesDrawerOpen(true)}
+          onClick={() => {
+            if (isMobile) {
+              setMobileView('menu');
+            } else {
+              setIsStudiesDrawerOpen(true);
+            }
+          }}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors shadow-2xs max-w-sm ${
             isDark
               ? 'border-slate-700 bg-slate-900/90 hover:bg-slate-800 text-slate-200'
