@@ -130,12 +130,14 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
       ref={menuRef}
       style={{
         top: `${coords.top}px`,
-        left: `${coords.left}px`
+        left: `${coords.left}px`,
+        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+        opacity: 1
       }}
-      className={`fixed z-[9999] flex items-center gap-1.5 p-2 rounded-2xl border-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 select-none max-w-[calc(100vw-28px)] overflow-x-auto ${
+      className={`fixed z-[9999] flex items-center gap-1.5 p-2 rounded-2xl border-2 shadow-2xl animate-in fade-in zoom-in-95 duration-150 select-none max-w-[calc(100vw-28px)] overflow-x-auto ${
         isDark
-          ? 'bg-slate-800/98 border-slate-600 shadow-[0_16px_50px_rgba(0,0,0,0.95)] ring-1 ring-white/20 text-white'
-          : 'bg-white/98 border-slate-300 text-slate-800 shadow-2xl ring-1 ring-black/5'
+          ? 'bg-slate-800 border-slate-600 shadow-[0_16px_50px_rgba(0,0,0,0.95)] ring-1 ring-white/20 text-white'
+          : 'bg-white border-slate-300 text-slate-800 shadow-2xl ring-1 ring-black/5'
       }`}
       onMouseDown={(e) => {
         // Evita que el clic en el menú deseleccione el texto antes de ejecutar la acción

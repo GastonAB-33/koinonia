@@ -81,6 +81,54 @@ async function getCandidateEndpoints(apiKey: string): Promise<WorkingCandidate[]
 }
 
 /**
+ * Filtra y limpia cualquier fuga de metadatos, razonamiento o etiquetas generadas por el modelo,
+ * y une palabras partidas con guión al final de línea ('adora-' 'ción' -> 'adoración').
+ */
+export function cleanTranscriptionText(rawText: string): string {
+  if (!rawText) return '';
+  let cleaned = rawText.trim();
+
+  // 1. Si el modelo volcó su razonamiento o estructura de prompt ('Role: ... Task: ...'):
+  // Buscar si colocó el bloque real detrás de "Content: # " o "Content:"
+  const contentMarkerMatch = cleaned.match(/(?:^|\n)\*?\s*Content:\s*([\s\S]+)/i);
+  if (contentMarkerMatch && contentMarkerMatch[1]) {
+    cleaned = contentMarkerMatch[1].trim();
+  }
+
+  // 2. Eliminar líneas de metadatos o auto-corrección que el modelo haya agregado
+  const lines = cleaned.split('\n');
+  const filteredLines = lines.filter((line) => {
+    const l = line.trim();
+    if (!l) return true;
+    if (/^\*?\s*Role\s*:/i.test(l)) return false;
+    if (/^\*?\s*Task\s*:/i.test(l)) return false;
+    if (/^\*?\s*Requirements\s*:/i.test(l)) return false;
+    if (/^\*?\s*Context\s*:/i.test(l)) return false;
+    if (/^\*?\s*Input Image\s*:/i.test(l)) return false;
+    if (/^\*?\s*Logo\s*:/i.test(l)) return false;
+    if (/^\*?\s*Check (?:spelling|punctuation|structure)\s*:/i.test(l)) return false;
+    if (/^\*?\s*(?:Professional|Maximum fidelity|Markdown structure|Includes page info)\?/i.test(l)) return false;
+    if (/^\*?\s*\(Self-Correction/i.test(l)) return false;
+    if (/^\*?\s*Text verification\s*:/i.test(l)) return false;
+    if (/^\*?\s*Note on the cut-off\s*:/i.test(l)) return false;
+    if (/^\*?\s*Header\s*:\s*Page\s*#?\d+/i.test(l)) return false;
+    if (/^\*?\s*Paragraph\s+\d+\s*:/i.test(l)) return false;
+    if (/^\*?\s*Body\s*:\s*Standard paragraphs/i.test(l)) return false;
+    return true;
+  });
+
+  cleaned = filteredLines.join('\n').trim();
+
+  // 3. Unir palabras con guión cortadas al final de una línea: ej. "adora-\nción" -> "adoración"
+  cleaned = cleaned.replace(/(\b[a-záéíóúñA-ZÁÉÍÓÚÑ]{2,})-\s*\n\s*([a-záéíóúñA-ZÁÉÍÓÚÑ]{2,}\b)/gu, '$1$2');
+
+  // 4. Unir palabras cortadas con guión y espacio dentro de la misma línea producidas por OCR: ej. "adora- ción"
+  cleaned = cleaned.replace(/(\b[a-záéíóúñA-ZÁÉÍÓÚÑ]{2,})-\s+([a-záéíóúñA-ZÁÉÍÓÚÑ]{2,}\b)/gu, '$1$2');
+
+  return cleaned.trim();
+}
+
+/**
  * Obtiene la API Key configurada por el usuario (en localStorage o variable de entorno de Vite)
  */
 export function getGeminiApiKey(): string {
@@ -330,21 +378,21 @@ Responde ÚNICAMENTE con un objeto JSON válido con exactamente los siguientes c
 
     const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
 
-    const promptText =
-      customPrompt ||
-      `Actúa como un erudito bíblico y transcriptor exegético profesional.
-Analiza con máxima precisión la imagen adjunta, que contiene notas manuscritas, apuntes de un cuaderno de estudio bíblico, bosquejos pastorales o páginas de comentarios/Escrituras.
+    // Directiva OCR estricta para garantizar 100% de precisión y cero metatexto/alucinaciones
+    const ocrDirective = `INSTRUCCIÓN OCR OBLIGATORIA:
+Transcribe de manera textual y con máxima fidelidad todo el contenido visible de esta página.
 
-INSTRUCCIONES CLAVE:
-1. Transcribe con fidelidad todo el contenido visible. Si hay letra cursiva o difícil, deduce el término bíblico/teológico correcto por el contexto.
-2. Identifica y conserva con exactitud versículos citados (ej. "Ro 8:28", "Jn 1:1").
-3. Si aparecen términos o palabras en griego o hebreo (o sus transliteraciones), transcríbelas con esmero.
-4. Organiza la salida en Markdown enriquecido y ordenado:
-   - Usa encabezados (# Título principal, ## Secciones, ### Subpuntos).
-   - Usa listas numeradas o con viñetas para las divisiones del estudio.
-   - Usa bloques de cita (> «...») para pasajes bíblicos.
-   - Usa negritas (*término*) para conceptos centrales.
-5. NO agregues saludos ni comentarios explicativos como "Aquí tienes la transcripción", entrega directamente el texto formateado del estudio bíblico listo para ser leído y editado.`;
+REGLAS ESTRICTAS DE SALIDA:
+1. Devuelve DIRECTAMENTE y EXCLUSIVAMENTE el texto transcripto en formato Markdown.
+2. PROHIBIDO GENERAR INTRODUCCIONES, METADATOS O AUTO-CORRECCIÓN: No escribas "Role:", "Task:", "Logo:", "Paragraph 1:", "Note:", ni "(Self-Correction during drafting)".
+3. Si una palabra está dividida por un guión al final de la línea (ej. "adora-" y "ción", o "indi-" y "vidual"), ÚNELA en una sola palabra completa ("adoración", "individual").
+4. Respeta mayúsculas, comillas (ej. «...» o "..."), cursivas y signos de puntuación del texto impreso.
+5. Si una oración se corta al final de la página visible, transcríbela con exactitud hasta la última palabra visible sin inventar texto.
+6. Si la página tiene un título destacado (ej: "PRÓLOGO"), colócalo como encabezado Markdown (# PRÓLOGO).`;
+
+    const promptText = customPrompt
+      ? `${ocrDirective}\n\nDetalle de la página:\n${customPrompt}`
+      : ocrDirective;
 
     const tryCallVision = async (candidate: WorkingCandidate) => {
       const url = `https://generativelanguage.googleapis.com/${candidate.apiVersion}/models/${candidate.model}:generateContent?key=${apiKey}`;
@@ -355,6 +403,13 @@ INSTRUCCIONES CLAVE:
           'x-goog-api-key': apiKey
         },
         body: JSON.stringify({
+          systemInstruction: {
+            parts: [
+              {
+                text: 'Eres un sistema OCR de precisión editorial. Extrae y transcribe fielmente el texto de la imagen a Markdown limpio. Nunca incluyas comentarios, ni análisis de rol, ni etiquetas de párrafos, ni auto-corrección. Devuelve únicamente el texto transcripto.'
+              }
+            ]
+          },
           contents: [
             {
               role: 'user',
@@ -372,7 +427,8 @@ INSTRUCCIONES CLAVE:
             }
           ],
           generationConfig: {
-            temperature: 0.15
+            temperature: 0.0,
+            topP: 0.95
           }
         })
       });
@@ -387,7 +443,9 @@ INSTRUCCIONES CLAVE:
       const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) throw new Error('Gemini no devolvió texto de la imagen.');
-      return rawText.trim();
+
+      // Limpiar y perfeccionar el texto resultante
+      return cleanTranscriptionText(rawText);
     };
 
     const candidates = await getCandidateEndpoints(apiKey);

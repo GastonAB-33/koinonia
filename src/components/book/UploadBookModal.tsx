@@ -188,10 +188,7 @@ export const UploadBookModal: React.FC<UploadBookModalProps> = ({ isOpen, onClos
       setPhotos([...updated]);
 
       try {
-        const prompt = `Actúa como un transcriptor bíblico profesional y erudito.
-Transcribe con máxima fidelidad la información de esta página de libro o cuaderno de estudio bíblico.
-Conserva títulos, citas de versículos y estructura en Markdown ordenado.
-Página #${i + 1} del libro "${title.trim()}".`;
+        const prompt = `Página #${i + 1} del libro "${title.trim()}".`;
 
         const text = await geminiService.transcribeStudyImage(
           updated[i].base64,

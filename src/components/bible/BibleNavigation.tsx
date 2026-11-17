@@ -262,14 +262,15 @@ export const BibleNavigation: React.FC = () => {
             {/* Panel Desplegable de Versiones Bíblicas */}
             {isVersionDropdownOpen && (
               <div
-                className={`absolute right-0 top-full mt-1.5 w-64 rounded-2xl p-2 z-50 shadow-2xl border transition-all animate-in fade-in zoom-in-95 duration-150 ${
+                style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', opacity: 1 }}
+                className={`absolute left-0 sm:left-0 top-full mt-1.5 w-64 max-w-[calc(100vw-32px)] rounded-2xl p-2 z-[100] shadow-[0_12px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 transition-all animate-in fade-in zoom-in-95 duration-150 ${
                   isDark
-                    ? 'bg-slate-800/98 border-2 border-slate-600 shadow-[0_16px_40px_rgba(0,0,0,0.9)] text-white'
-                    : 'bg-white/98 border border-slate-200 shadow-xl text-slate-900'
+                    ? 'bg-slate-800 border-slate-600 text-white'
+                    : 'bg-white border-slate-300 text-slate-900'
                 }`}
               >
                 <div className={`px-2.5 py-1.5 mb-1 text-[10px] font-bold uppercase tracking-wider border-b ${
-                  isDark ? 'text-slate-400 border-slate-700' : 'text-slate-400 border-slate-100'
+                  isDark ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-slate-200'
                 }`}>
                   Traducciones Bíblicas
                 </div>
@@ -359,15 +360,16 @@ export const BibleNavigation: React.FC = () => {
             {/* Panel Desplegable Anclado al Botón Comparar */}
             {isCompareDropdownOpen && (
               <div
-                className={`absolute right-0 top-full mt-1.5 w-72 rounded-2xl p-2.5 z-50 shadow-2xl border transition-all animate-in fade-in zoom-in-95 duration-150 ${
+                style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', opacity: 1 }}
+                className={`absolute right-0 top-full mt-1.5 w-72 max-w-[calc(100vw-32px)] rounded-2xl p-2.5 z-[100] shadow-[0_12px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 transition-all animate-in fade-in zoom-in-95 duration-150 ${
                   isDark
-                    ? 'bg-slate-800/98 border-2 border-slate-600 shadow-[0_16px_40px_rgba(0,0,0,0.9)] text-white'
-                    : 'bg-white/98 border border-slate-200 shadow-xl text-slate-900'
+                    ? 'bg-slate-800 border-slate-600 text-white'
+                    : 'bg-white border-slate-300 text-slate-900'
                 }`}
               >
                 <div
                   className={`px-2.5 py-1.5 mb-1.5 text-[11px] font-bold uppercase tracking-wider border-b flex items-center justify-between ${
-                    isDark ? 'text-slate-300 border-slate-700' : 'text-slate-600 border-slate-100'
+                    isDark ? 'text-slate-300 border-slate-700' : 'text-slate-700 border-slate-200'
                   }`}
                 >
                   <span>

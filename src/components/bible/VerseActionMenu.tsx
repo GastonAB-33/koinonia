@@ -94,10 +94,11 @@ export const VerseActionMenu: React.FC<VerseActionMenuProps> = ({ verse, onClose
       />
 
       <div
+        style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', opacity: 1 }}
         className={`rounded-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 w-72 max-w-[calc(100vw-32px)] shadow-2xl transition-all ${
           isDark
-            ? 'bg-slate-800/98 border-2 border-slate-600 shadow-[0_16px_50px_rgba(0,0,0,0.95)] ring-1 ring-white/20 text-white'
-            : 'bg-white/98 backdrop-blur-md border border-slate-200/90 text-slate-800 shadow-2xl'
+            ? 'bg-slate-800 border-2 border-slate-600 shadow-[0_16px_50px_rgba(0,0,0,0.95)] ring-1 ring-white/20 text-white'
+            : 'bg-white border-2 border-slate-300 text-slate-800 shadow-2xl'
         }`}
       >
         {/* Encabezado del menú */}
