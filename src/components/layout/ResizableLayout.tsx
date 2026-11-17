@@ -1,6 +1,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { PanelGroup, Panel, PanelResizeHandle, ImperativePanelHandle } from 'react-resizable-panels';
 import { BibleReader } from '../bible/BibleReader';
+import { BibleParallelReader } from '../bible/BibleParallelReader';
 import { StudyEditor } from '../study/StudyEditor';
 import { InfiniteCanvas } from '../canvas/InfiniteCanvas';
 import { FreeBookWorkspace } from '../freebook/FreeBookWorkspace';
@@ -10,6 +11,7 @@ import { MobileNavigationBar } from './MobileNavigationBar';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useStudyStore } from '../../store/useStudyStore';
+import { useBibleStore } from '../../store/useBibleStore';
 import { useSketchbookStore } from '../../store/useSketchbookStore';
 import { GripVertical, ArrowLeft, BookMarked, FileText, Palette } from 'lucide-react';
 
@@ -29,8 +31,9 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     const { currentTheme } = useThemeStore();
     const isMobile = useIsMobile();
 
-    // Estado de la vista activa en móvil desde useStudyStore: 'menu' (Mis Estudios) | 'bible' (Lectura) | 'study' (Estudio)
+    // Estado de la vista activa en móvil desde useStudyStore: 'menu' (Mis Estudios) | 'bible' (Lectura) | 'bible-parallel' (Comparación) | 'study' (Estudio)
     const { mobileView, setMobileView } = useStudyStore();
+    const { readingMode } = useBibleStore();
 
     const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
 
@@ -46,7 +49,7 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
         if (isMobile) {
           if (preset === 'left-only') setMobileView('bible');
           else if (preset === 'right-only') setMobileView('study');
-          else if (preset === 'split-50') setMobileView('bible');
+          else if (preset === 'split-50') setMobileView(readingMode === 'side-by-side' ? 'bible-parallel' : 'bible');
         } else {
           if (preset === 'left-only') {
             leftPanelRef.current?.resize(100);
@@ -63,45 +66,66 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     }));
 
     // =========================================================================
-    // VERSIÓN MÓVIL (Con carrusel animado de 3 pantallas: Menú <- Biblia -> Estudio)
+    // VERSIÓN MÓVIL (Con carrusel animado de 3 o 4 pantallas)
     // =========================================================================
     if (isMobile) {
+      const isSideBySide = readingMode === 'side-by-side';
+
       return (
         <div
-          className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden relative flex flex-col select-none touch-pan-y"
+          className="flex-1 min-h-0 w-full overflow-hidden relative flex flex-col select-none touch-pan-y"
         >
           {/* Contenedor con animación horizontal deslizante (Slide Animation) */}
-          <div className="flex-1 w-full overflow-hidden relative">
+          <div className="flex-1 min-h-0 w-full overflow-hidden relative">
             <div
-              className="flex w-[300%] h-full transition-transform duration-300 ease-out"
+              className={`flex h-full transition-transform duration-300 ease-out ${
+                isSideBySide ? 'w-[400%]' : 'w-[300%]'
+              }`}
               style={{
-                transform:
-                  mobileView === 'menu'
+                transform: isSideBySide
+                  ? mobileView === 'menu'
                     ? 'translateX(0%)'
                     : mobileView === 'bible'
-                    ? 'translateX(-33.333333%)'
-                    : 'translateX(-66.666667%)'
+                    ? 'translateX(-25%)'
+                    : mobileView === 'bible-parallel'
+                    ? 'translateX(-50%)'
+                    : 'translateX(-75%)'
+                  : mobileView === 'menu'
+                  ? 'translateX(0%)'
+                  : mobileView === 'study'
+                  ? 'translateX(-66.666667%)'
+                  : 'translateX(-33.333333%)'
               }}
             >
               {/* 1. Vista Menú (0% - Izquierda) */}
-              <div className="w-1/3 h-full flex-shrink-0 overflow-hidden">
+              <div className={`${isSideBySide ? 'w-1/4' : 'w-1/3'} h-full flex-shrink-0 overflow-hidden`}>
                 <MobileMenuView
                   onGoToBible={() => setMobileView('bible')}
                   onGoToStudy={() => setMobileView('study')}
                 />
               </div>
 
-              {/* 2. Vista Lector Bíblico (33.33% - Centro, con comparación mitad superior e inferior) */}
+              {/* 2. Vista Lector Bíblico Principal */}
               <div
-                className="w-1/3 h-full flex-shrink-0 flex flex-col transition-colors overflow-hidden"
+                className={`${isSideBySide ? 'w-1/4' : 'w-1/3'} h-full flex-shrink-0 flex flex-col transition-colors overflow-hidden`}
                 style={{ backgroundColor: 'var(--bg-reader, #fdfbf7)' }}
               >
                 <BibleReader />
               </div>
 
-              {/* 3. Vista Herramientas de Estudio (66.66% - Derecha, pantalla completa) */}
+              {/* 2.5 Vista Lector Bíblico de Comparación (Solo si modo es 'al lado') */}
+              {isSideBySide && (
+                <div
+                  className="w-1/4 h-full flex-shrink-0 flex flex-col transition-colors overflow-hidden"
+                  style={{ backgroundColor: 'var(--bg-reader, #fdfbf7)' }}
+                >
+                  <BibleParallelReader />
+                </div>
+              )}
+
+              {/* 3. Vista Herramientas de Estudio (Derecha, pantalla completa) */}
               <div
-                className={`w-1/3 h-full flex-shrink-0 flex flex-col overflow-hidden transition-colors ${
+                className={`${isSideBySide ? 'w-1/4' : 'w-1/3'} h-full flex-shrink-0 flex flex-col overflow-hidden transition-colors ${
                   isDark
                     ? currentTheme === 'dark-blackout'
                       ? 'bg-black text-white'
@@ -214,7 +238,7 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     // VERSIÓN ESCRITORIO (Paneles Redimensionables lado a lado con react-resizable-panels)
     // =========================================================================
     return (
-      <div className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden">
+      <div className="flex-1 min-h-0 w-full overflow-hidden">
         <PanelGroup direction="horizontal" autoSaveId="koinonia-split-layout">
           {/* Panel Izquierdo: Lector Bíblico */}
           <Panel

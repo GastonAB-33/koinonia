@@ -22,6 +22,7 @@ export const BibleReader: React.FC = () => {
     chapterData,
     parallelChapterData,
     isParallelMode,
+    readingMode,
     currentVersion,
     parallelVersion,
     setParallelVersion,
@@ -281,7 +282,7 @@ export const BibleReader: React.FC = () => {
         <div className="h-full flex items-center justify-center text-slate-400 text-sm">
           Selecciona un libro y capítulo para comenzar la lectura.
         </div>
-      ) : isParallelMode && isMobile ? (
+      ) : isMobile && readingMode === 'split-vertical' ? (
         /* ========================================================================= */
         /* MODO COMPARACIÓN / ACOMPAÑAMIENTO EN MÓVIL: MITAD SUP (50%) + INF (50%)    */
         /* ========================================================================= */

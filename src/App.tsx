@@ -23,7 +23,7 @@ export const App: React.FC = () => {
   return (
     <div
       data-theme={currentTheme}
-      className={`h-screen w-screen flex flex-col overflow-hidden font-sans transition-colors duration-200 theme-${currentTheme}`}
+      className={`h-[100dvh] max-h-[100dvh] w-full flex flex-col overflow-hidden font-sans transition-colors duration-200 theme-${currentTheme}`}
       style={{
         backgroundColor: 'var(--bg-app, #f2f7f7)',
         color: 'var(--text-main, #1e293b)'

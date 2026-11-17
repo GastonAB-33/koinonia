@@ -7,11 +7,11 @@ import {
   ChevronRight,
   ChevronDown,
   Columns,
+  Rows,
   Book,
   BookOpen,
   Camera,
-  Check,
-  X
+  Check
 } from 'lucide-react';
 import { BibleSelectorModal } from './BibleSelectorModal';
 import { StudyCameraModal } from '../study/StudyCameraModal';
@@ -31,11 +31,11 @@ export const BibleNavigation: React.FC = () => {
     currentChapterNum,
     targetVerseNum,
     currentVersion,
-    isParallelMode,
+    readingMode,
+    setReadingMode,
     parallelVersion,
     setBookAndChapter,
     setVersion,
-    toggleParallelMode,
     setParallelVersion,
     customBooks,
     activeCustomBookId,
@@ -82,7 +82,6 @@ export const BibleNavigation: React.FC = () => {
 
   const currentBook = books.find((b) => b.id === currentBookId) || books[0];
   const activeVersionObj = VERSIONS.find((v) => v.id === currentVersion) || VERSIONS[0];
-  const activeParallelVersionObj = VERSIONS.find((v) => v.id === parallelVersion) || VERSIONS[3];
 
   // Navegación entre capítulos (soporta libros canónicos y libros propios del usuario)
   const handlePrevChapter = () => {
@@ -312,42 +311,38 @@ export const BibleNavigation: React.FC = () => {
             )}
           </div>
 
-          {/* 2. MENÚ DESPLEGABLE DESDE EL BOTÓN COMPARAR / ACOMPAÑAR */}
+          {/* 2. BOTÓN SELECTOR DE LOS 3 MODOS DE LECTURA */}
           <div className="relative" ref={compareDropdownRef}>
             <button
               onClick={() => {
                 setIsCompareDropdownOpen(!isCompareDropdownOpen);
                 setIsVersionDropdownOpen(false);
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold border transition-all shadow-xs cursor-pointer ${
-                isParallelMode
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl font-semibold border transition-all shadow-xs cursor-pointer ${
+                readingMode !== 'single'
                   ? isDark
-                    ? 'bg-blue-950/80 text-blue-300 border-blue-700 shadow-sm ring-1 ring-blue-500/40'
-                    : 'bg-blue-50 text-blue-800 border-blue-300 shadow-sm ring-1 ring-blue-400/40'
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-700 shadow-sm ring-1 ring-amber-500/40'
+                    : 'bg-amber-50 text-amber-900 border-amber-300 shadow-sm ring-1 ring-amber-400/40'
                   : isDark
                   ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
                   : 'bg-slate-100 hover:bg-slate-200/80 border-slate-200 text-slate-700'
               }`}
-              title={
-                isStudyingCustomBook
-                  ? 'Acompañar el estudio de este libro con la Biblia en paralelo'
-                  : 'Comparar versiones bíblicas en paralelo'
-              }
+              title="Escoger modo de lectura: Arriba y Abajo, Al Lado, o Sin Comparación"
             >
-              {isStudyingCustomBook ? (
-                <BookOpen className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              {readingMode === 'split-vertical' ? (
+                <Rows className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              ) : readingMode === 'side-by-side' ? (
+                <Columns className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               ) : (
-                <Columns className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <BookOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               )}
               
-              <span>
-                {isStudyingCustomBook
-                  ? isParallelMode
-                    ? `Acompañar: ${activeParallelVersionObj.label}`
-                    : 'Acompañar con Biblia'
-                  : isParallelMode
-                  ? `Comparar: ${activeParallelVersionObj.label}`
-                  : 'Comparar'}
+              <span className="text-xs">
+                {readingMode === 'split-vertical'
+                  ? 'Arriba y abajo'
+                  : readingMode === 'side-by-side'
+                  ? 'Al lado'
+                  : 'Sin comparación'}
               </span>
 
               <ChevronDown
@@ -357,11 +352,11 @@ export const BibleNavigation: React.FC = () => {
               />
             </button>
 
-            {/* Panel Desplegable Anclado al Botón Comparar */}
+            {/* Panel Desplegable de los 3 Modos de Lectura */}
             {isCompareDropdownOpen && (
               <div
                 style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', opacity: 1 }}
-                className={`absolute right-0 top-full mt-1.5 w-72 max-w-[calc(100vw-32px)] rounded-2xl p-2.5 z-[100] shadow-[0_12px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 transition-all animate-in fade-in zoom-in-95 duration-150 ${
+                className={`absolute right-0 top-full mt-1.5 w-80 max-w-[calc(100vw-24px)] rounded-2xl p-2.5 z-[100] shadow-[0_12px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 transition-all animate-in fade-in zoom-in-95 duration-150 ${
                   isDark
                     ? 'bg-slate-800 border-slate-600 text-white'
                     : 'bg-white border-slate-300 text-slate-900'
@@ -372,84 +367,137 @@ export const BibleNavigation: React.FC = () => {
                     isDark ? 'text-slate-300 border-slate-700' : 'text-slate-700 border-slate-200'
                   }`}
                 >
-                  <span>
-                    {isStudyingCustomBook
-                      ? '📖 Acompañamiento Bíblico'
-                      : '⚖️ Comparar en Paralelo'}
+                  <span>Modos de Lectura</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 font-bold">
+                    3 Opciones
                   </span>
-                  {isParallelMode && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold">
-                      Activo
-                    </span>
-                  )}
                 </div>
 
-                {/* Opción para desactivar modo paralelo si está encendido */}
-                {isParallelMode && (
+                <div className="space-y-1.5">
+                  {/* Modo 1: Arriba y Abajo */}
                   <button
                     onClick={() => {
-                      toggleParallelMode();
+                      setReadingMode('split-vertical');
                       setIsCompareDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-2.5 py-2 mb-1.5 rounded-xl flex items-center gap-2 text-xs font-semibold border transition-colors ${
-                      isDark
-                        ? 'border-rose-800/60 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300'
-                        : 'border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800'
+                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                      readingMode === 'split-vertical'
+                        ? isDark
+                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
+                          : 'bg-amber-50 border-amber-400 text-amber-950'
+                        : isDark
+                        ? 'border-slate-700/60 hover:bg-slate-700/50 text-slate-300'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
                     }`}
                   >
-                    <X className="w-3.5 h-3.5 shrink-0" />
-                    <span>
-                      {isStudyingCustomBook
-                        ? 'Ocultar acompañamiento bíblico'
-                        : 'Desactivar comparación (Vista simple)'}
-                    </span>
-                  </button>
-                )}
-
-                <div className={`px-2.5 py-1 text-[10px] font-bold ${
-                  isDark ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  {isStudyingCustomBook
-                    ? 'Seleccionar versión bíblica para acompañar:'
-                    : 'Seleccionar versión secundaria para comparar:'}
-                </div>
-
-                <div className="space-y-1">
-                  {VERSIONS.map((v) => {
-                    const isSelected = isParallelMode && parallelVersion === v.id;
-                    return (
-                      <button
-                        key={`compare-ver-${v.id}`}
-                        onClick={() => {
-                          setParallelVersion(v.id);
-                          if (!isParallelMode) {
-                            toggleParallelMode();
-                          }
-                          setIsCompareDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
-                          isSelected
-                            ? isDark
-                              ? 'bg-blue-950/80 text-blue-300 font-bold border border-blue-800/70'
-                              : 'bg-blue-50 text-blue-900 font-bold border border-blue-200'
-                            : isDark
-                            ? 'hover:bg-slate-700/70 text-slate-200'
-                            : 'hover:bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-xs font-semibold">{v.label}</span>
-                          <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {v.name}
-                          </span>
+                    <div className="flex items-center gap-2.5">
+                      <Rows className="w-4 h-4 text-amber-500 shrink-0" />
+                      <div>
+                        <div className="font-bold text-xs">1. Arriba y abajo</div>
+                        <div className="text-[10px] opacity-75 leading-tight">
+                          Pantalla dividida al medio (Lectura superior e inferior)
                         </div>
-                        {isSelected && (
-                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
+                      </div>
+                    </div>
+                    {readingMode === 'split-vertical' && (
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                    )}
+                  </button>
+
+                  {/* Modo 2: Al lado (Agrega sección al menú inferior con icono naranja) */}
+                  <button
+                    onClick={() => {
+                      setReadingMode('side-by-side');
+                      setIsCompareDropdownOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                      readingMode === 'side-by-side'
+                        ? isDark
+                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
+                          : 'bg-amber-50 border-amber-400 text-amber-950'
+                        : isDark
+                        ? 'border-slate-700/60 hover:bg-slate-700/50 text-slate-300'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Columns className="w-4 h-4 text-amber-500 shrink-0" />
+                      <div>
+                        <div className="font-bold text-xs">2. Al lado (2 pantallas)</div>
+                        <div className="text-[10px] opacity-75 leading-tight">
+                          Pantallas completas separadas (Agrega 2 botones naranja abajo)
+                        </div>
+                      </div>
+                    </div>
+                    {readingMode === 'side-by-side' && (
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                    )}
+                  </button>
+
+                  {/* Modo 3: Sin comparación */}
+                  <button
+                    onClick={() => {
+                      setReadingMode('single');
+                      setIsCompareDropdownOpen(false);
+                    }}
+                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                      readingMode === 'single'
+                        ? isDark
+                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
+                          : 'bg-amber-50 border-amber-400 text-amber-950'
+                        : isDark
+                        ? 'border-slate-700/60 hover:bg-slate-700/50 text-slate-300'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <BookOpen className="w-4 h-4 text-slate-400 shrink-0" />
+                      <div>
+                        <div className="font-bold text-xs">3. Sin comparación</div>
+                        <div className="text-[10px] opacity-75 leading-tight">
+                          Lectura única tradicional a pantalla completa
+                        </div>
+                      </div>
+                    </div>
+                    {readingMode === 'single' && (
+                      <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                    )}
+                  </button>
                 </div>
+
+                {/* Si no es modo simple, mostrar selector rápido de versión a comparar */}
+                {readingMode !== 'single' && (
+                  <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-700">
+                    <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5 text-slate-500 dark:text-slate-400">
+                      Versión de comparación:
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {VERSIONS.map((v) => {
+                        const isSelected = parallelVersion === v.id;
+                        return (
+                          <button
+                            key={`compare-ver-${v.id}`}
+                            onClick={() => {
+                              setParallelVersion(v.id);
+                            }}
+                            className={`px-2 py-1.5 rounded-lg text-xs font-semibold border text-left flex items-center justify-between transition-all ${
+                              isSelected
+                                ? isDark
+                                  ? 'bg-amber-600 text-white border-amber-500 font-bold'
+                                  : 'bg-amber-600 text-white border-amber-600 font-bold'
+                                : isDark
+                                ? 'border-slate-700 hover:bg-slate-700 text-slate-300'
+                                : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            <span>{v.label}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

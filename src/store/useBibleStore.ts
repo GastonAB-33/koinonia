@@ -8,7 +8,8 @@ import {
   Highlight,
   HighlightColor,
   CustomBook,
-  CustomChapter
+  CustomChapter,
+  ReadingMode
 } from '../types/bible';
 import { bibleService } from '../services/bible/mockBibleService';
 
@@ -68,9 +69,10 @@ interface BibleState {
   exitCustomBook: () => void;
   deleteCustomBook: (bookId: string) => void;
 
-  // Modo Paralelo
+  // Modo Paralelo y Modos de Lectura ('split-vertical' | 'side-by-side' | 'single')
   isParallelMode: boolean;
   parallelVersion: BibleVersion;
+  readingMode: ReadingMode;
 
   // Datos cargados
   chapterData: BibleChapter | null;
@@ -92,7 +94,8 @@ interface BibleState {
   navigateToVerse: (bookId: string, chapter: number, verse?: number) => Promise<void>;
   setTargetVerse: (verse: number | null) => void;
   setVersion: (version: BibleVersion) => Promise<void>;
-  toggleParallelMode: () => void;
+  toggleParallelMode: () => Promise<void>;
+  setReadingMode: (mode: ReadingMode) => Promise<void>;
   setParallelVersion: (version: BibleVersion) => Promise<void>;
   addHighlight: (verse: BibleVerse, color: HighlightColor) => void;
   removeHighlight: (bookId: string, chapter: number, verse: number) => void;
@@ -233,6 +236,7 @@ export const useBibleStore = create<BibleState>()(
 
       isParallelMode: true,
       parallelVersion: 'NVI',
+      readingMode: 'split-vertical',
 
       chapterData: null,
       parallelChapterData: null,
@@ -348,8 +352,22 @@ export const useBibleStore = create<BibleState>()(
 
       toggleParallelMode: async () => {
         const nextMode = !get().isParallelMode;
-        set({ isParallelMode: nextMode });
         if (nextMode) {
+          const currentReadingMode = get().readingMode === 'single' ? 'split-vertical' : get().readingMode;
+          set({ isParallelMode: true, readingMode: currentReadingMode });
+          const { currentBookId, currentChapterNum, parallelVersion } = get();
+          const parallelData = await bibleService.getChapter(currentBookId, currentChapterNum, parallelVersion);
+          set({ parallelChapterData: parallelData });
+        } else {
+          set({ isParallelMode: false, readingMode: 'single' });
+        }
+      },
+
+      setReadingMode: async (mode: ReadingMode) => {
+        if (mode === 'single') {
+          set({ readingMode: 'single', isParallelMode: false });
+        } else {
+          set({ readingMode: mode, isParallelMode: true });
           const { currentBookId, currentChapterNum, parallelVersion } = get();
           const parallelData = await bibleService.getChapter(currentBookId, currentChapterNum, parallelVersion);
           set({ parallelChapterData: parallelData });
@@ -397,6 +415,7 @@ export const useBibleStore = create<BibleState>()(
         currentChapterNum: state.currentChapterNum,
         currentVersion: state.currentVersion,
         isParallelMode: state.isParallelMode,
+        readingMode: state.readingMode,
         parallelVersion: state.parallelVersion,
         highlights: state.highlights,
         customBooks: state.customBooks,

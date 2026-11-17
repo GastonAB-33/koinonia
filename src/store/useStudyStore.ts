@@ -9,9 +9,9 @@ interface StudyState {
   studies: Study[];
   activeStudyId: string;
 
-  // Navegación en móvil: 'menu' (Mis Estudios) | 'bible' (Lectura) | 'study' (Estudio)
-  mobileView: 'menu' | 'bible' | 'study';
-  setMobileView: (view: 'menu' | 'bible' | 'study') => void;
+  // Navegación en móvil: 'menu' (Mis Estudios) | 'bible' (Lectura) | 'bible-parallel' (Comparación) | 'study' (Estudio)
+  mobileView: 'menu' | 'bible' | 'bible-parallel' | 'study';
+  setMobileView: (view: 'menu' | 'bible' | 'bible-parallel' | 'study') => void;
 
   // Acciones
   getActiveStudy: () => Study | undefined;

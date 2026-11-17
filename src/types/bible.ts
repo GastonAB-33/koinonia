@@ -1,5 +1,7 @@
 export type BibleVersion = 'RVR1960' | 'RVR1909' | 'NVI' | 'DHH' | 'LBLA';
 
+export type ReadingMode = 'split-vertical' | 'side-by-side' | 'single';
+
 export interface StrongToken {
   word: string;
   strong: string;

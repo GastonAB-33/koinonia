@@ -1,6 +1,7 @@
 import React from 'react';
+import { useBibleStore } from '../../store/useBibleStore';
 
-export type MobileNavView = 'menu' | 'bible' | 'study';
+export type MobileNavView = 'menu' | 'bible' | 'bible-parallel' | 'study';
 
 interface MobileNavigationBarProps {
   activeView: MobileNavView;
@@ -13,6 +14,7 @@ interface ScreenIconProps {
   borderColor: string;
   accentColor: string;
   isActive: boolean;
+  subBadge?: string;
 }
 
 const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
@@ -31,7 +33,7 @@ const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         className={`transition-all duration-200 transform ${
           isActive
-            ? 'scale-110 drop-shadow-[0_2px_5px_rgba(0,0,0,0.18)]'
+            ? 'scale-115 drop-shadow-[0_2px_6px_rgba(0,0,0,0.22)]'
             : 'scale-95 opacity-55 hover:opacity-85'
         }`}
       >
@@ -83,12 +85,17 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
   activeView,
   onViewChange
 }) => {
+  const { readingMode } = useBibleStore();
+  const isSideBySide = readingMode === 'side-by-side';
+
   return (
     <nav
-      className="shrink-0 h-14 px-4 flex items-center justify-center gap-12 sm:gap-16 z-30 select-none border-t transition-colors shadow-[0_-3px_12px_rgba(180,100,30,0.07)]"
+      className="shrink-0 w-full flex items-center justify-center gap-7 sm:gap-14 z-40 select-none border-t transition-colors shadow-[0_-3px_12px_rgba(180,100,30,0.07)]"
       style={{
         backgroundColor: '#faefe3',
-        borderColor: '#eddccb'
+        borderColor: '#eddccb',
+        paddingTop: '6px',
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)'
       }}
       aria-label="Navegación de secciones"
     >
@@ -110,15 +117,15 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
         />
       </button>
 
-      {/* 2. Sección Lectura: Naranja Fuerte */}
+      {/* 2. Sección Lectura Principal: Naranja Fuerte */}
       <button
         type="button"
         onClick={() => onViewChange('bible')}
         className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
           activeView === 'bible' ? 'bg-black/5' : 'hover:bg-black/5'
         }`}
-        title="Lectura"
-        aria-label="Lectura"
+        title="Lectura Principal"
+        aria-label="Lectura Principal"
       >
         <ScreenDeviceIcon
           fillColor="#ea580c"
@@ -128,7 +135,27 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
         />
       </button>
 
-      {/* 3. Sección Estudio: Blanco */}
+      {/* 3. Sección Comparación (Solo si modo es 'al lado'): Ambos del mismo color naranja */}
+      {isSideBySide && (
+        <button
+          type="button"
+          onClick={() => onViewChange('bible-parallel')}
+          className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
+            activeView === 'bible-parallel' ? 'bg-black/5' : 'hover:bg-black/5'
+          }`}
+          title="Lectura Comparación"
+          aria-label="Lectura Comparación"
+        >
+          <ScreenDeviceIcon
+            fillColor="#ea580c"
+            borderColor="#c2410c"
+            accentColor="#ffffff"
+            isActive={activeView === 'bible-parallel'}
+          />
+        </button>
+      )}
+
+      {/* 4. Sección Estudio: Blanco */}
       <button
         type="button"
         onClick={() => onViewChange('study')}
