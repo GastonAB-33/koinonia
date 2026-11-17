@@ -110,8 +110,8 @@ export const LexiconDrawer: React.FC = () => {
         className="fixed inset-0 bg-slate-950/50 backdrop-blur-2xs z-[110] transition-opacity animate-in fade-in duration-200"
       />
       <div
-        className={`fixed inset-y-0 right-0 z-[120] w-full max-w-md backdrop-blur-xl border-l shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 transition-colors ${
-          isDark ? 'bg-slate-900/98 border-purple-900/60 text-white' : 'bg-white/95 border-purple-200/80 text-slate-800'
+        className={`fixed inset-y-0 right-0 z-[120] w-full max-w-md border-l shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 transition-colors ${
+          isDark ? 'bg-slate-900 border-purple-900/60 text-white' : 'bg-white border-purple-200/80 text-slate-800'
         }`}
       >
       {/* Cabecera del Drawer */}

@@ -41,62 +41,6 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
       }
     }, [mobileView]);
 
-    // Manejo de gestos táctiles de deslizamiento (Swipe)
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
-    const isHorizontalSwipe = useRef<boolean>(false);
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-      touchStartX.current = e.touches[0].clientX;
-      touchStartY.current = e.touches[0].clientY;
-      isHorizontalSwipe.current = false;
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-      if (touchStartX.current === null || touchStartY.current === null) return;
-      const deltaX = e.touches[0].clientX - touchStartX.current;
-      const deltaY = e.touches[0].clientY - touchStartY.current;
-
-      // Verificar que el movimiento sea principalmente horizontal
-      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && Math.abs(deltaX) > 20) {
-        isHorizontalSwipe.current = true;
-      }
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-      if (touchStartX.current === null) return;
-      const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-      touchStartX.current = null;
-      touchStartY.current = null;
-
-      if (!isHorizontalSwipe.current) return;
-      isHorizontalSwipe.current = false;
-
-      const SWIPE_THRESHOLD = 45;
-
-      if (deltaX < -SWIPE_THRESHOLD) {
-        // Deslizar de DERECHA a IZQUIERDA (<-)
-        // Avanza hacia la pantalla de la derecha:
-        // - En menú (0) pasa a biblia (1)
-        // - En biblia (1) pasa a herramientas de estudio (2)
-        if (mobileView === 'bible') {
-          setMobileView('study');
-        } else if (mobileView === 'menu') {
-          setMobileView('bible');
-        }
-      } else if (deltaX > SWIPE_THRESHOLD) {
-        // Deslizar de IZQUIERDA a DERECHA (->)
-        // Retrocede hacia la pantalla de la izquierda:
-        // - En herramientas de estudio (2) vuelve a biblia (1)
-        // - En biblia (1) pasa a menú (0)
-        if (mobileView === 'bible') {
-          setMobileView('menu');
-        } else if (mobileView === 'study') {
-          setMobileView('bible');
-        }
-      }
-    };
-
     useImperativeHandle(ref, () => ({
       setPreset: (preset) => {
         if (isMobile) {
@@ -124,10 +68,7 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
     if (isMobile) {
       return (
         <div
-          className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden relative flex flex-col select-none"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          className="flex-1 w-full h-[calc(100vh-3.5rem)] overflow-hidden relative flex flex-col select-none touch-pan-y"
         >
           {/* Contenedor con animación horizontal deslizante (Slide Animation) */}
           <div className="flex-1 w-full overflow-hidden relative">
@@ -173,10 +114,6 @@ export const ResizableLayout = forwardRef<ResizableLayoutHandle, ResizableLayout
                   className={`px-3 py-2 border-b flex items-center justify-between shrink-0 select-none z-20 backdrop-blur-md ${
                     isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-slate-50/95 border-slate-200'
                   }`}
-                  // Capturar swipe en el header de herramientas para volver a biblia
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
                 >
                   <button
                     onClick={() => setMobileView('bible')}

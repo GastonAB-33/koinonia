@@ -1,112 +1,150 @@
 import React from 'react';
-import { useBibleStore } from '../../store/useBibleStore';
-import { useThemeStore } from '../../store/useThemeStore';
-import { BookOpen, BookMarked, FileText, Palette } from 'lucide-react';
 
 export type MobileNavView = 'menu' | 'bible' | 'study';
 
 interface MobileNavigationBarProps {
   activeView: MobileNavView;
   onViewChange: (view: MobileNavView) => void;
-  rightPanelTab: 'editor' | 'freebook' | 'sketchbook' | 'canvas';
+  rightPanelTab?: 'editor' | 'freebook' | 'sketchbook' | 'canvas';
 }
+
+interface ScreenIconProps {
+  fillColor: string;
+  borderColor: string;
+  accentColor: string;
+  isActive: boolean;
+}
+
+const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
+  fillColor,
+  borderColor,
+  accentColor,
+  isActive
+}) => {
+  return (
+    <div className="relative flex flex-col items-center">
+      <svg
+        width="18"
+        height="28"
+        viewBox="0 0 18 28"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={`transition-all duration-200 transform ${
+          isActive
+            ? 'scale-110 drop-shadow-[0_2px_5px_rgba(0,0,0,0.18)]'
+            : 'scale-95 opacity-55 hover:opacity-85'
+        }`}
+      >
+        {/* Rectángulo vertical como una pantalla de celular */}
+        <rect
+          x="1"
+          y="1"
+          width="16"
+          height="26"
+          rx="3.5"
+          fill={fillColor}
+          stroke={borderColor}
+          strokeWidth="1.5"
+        />
+        {/* Ranura auricular/notch superior */}
+        <line
+          x1="6.5"
+          y1="3.5"
+          x2="11.5"
+          y2="3.5"
+          stroke={accentColor}
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+        {/* Barra inferior / home indicator */}
+        <line
+          x1="6"
+          y1="24.5"
+          x2="12"
+          y2="24.5"
+          stroke={accentColor}
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+      </svg>
+
+      {/* Indicador sutil de sección activa sin texto */}
+      <span
+        className={`w-1.5 h-1.5 rounded-full mt-1.5 transition-all duration-200 ${
+          isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+        }`}
+        style={{ backgroundColor: borderColor }}
+      />
+    </div>
+  );
+};
 
 export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
   activeView,
-  onViewChange,
-  rightPanelTab
+  onViewChange
 }) => {
-  const { isParallelMode } = useBibleStore();
-  const { currentTheme } = useThemeStore();
-  const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
-
-  const StudyIcon =
-    rightPanelTab === 'sketchbook'
-      ? BookMarked
-      : rightPanelTab === 'editor'
-      ? FileText
-      : Palette;
-
   return (
-    <div
-      className={`shrink-0 h-14 border-t px-2 flex items-center justify-around z-30 select-none shadow-[0_-4px_20px_rgba(0,0,0,0.1)] transition-colors ${
-        isDark
-          ? 'bg-slate-950/95 backdrop-blur-md border-slate-800 text-white'
-          : 'bg-white/95 backdrop-blur-md border-slate-200/90 text-slate-800'
-      }`}
+    <nav
+      className="shrink-0 h-14 px-4 flex items-center justify-center gap-12 sm:gap-16 z-30 select-none border-t transition-colors shadow-[0_-3px_12px_rgba(180,100,30,0.07)]"
+      style={{
+        backgroundColor: '#faefe3',
+        borderColor: '#eddccb'
+      }}
+      aria-label="Navegación de secciones"
     >
-      {/* 1. Botón Menú Principal (Mis Estudios) (Izquierda) */}
+      {/* 1. Sección Mis Estudios: Violeta */}
       <button
         type="button"
         onClick={() => onViewChange('menu')}
-        className={`flex-1 py-1 px-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all ${
-          activeView === 'menu'
-            ? isDark
-              ? 'bg-amber-600 text-white font-bold shadow-md'
-              : 'bg-amber-600 text-white font-bold shadow-md'
-            : isDark
-            ? 'text-slate-400 hover:text-white'
-            : 'text-slate-500 hover:text-slate-900'
+        className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
+          activeView === 'menu' ? 'bg-black/5' : 'hover:bg-black/5'
         }`}
-        title="Menú Principal: Mis Estudios y Biblioteca"
+        title="Mis Estudios"
+        aria-label="Mis Estudios"
       >
-        <BookMarked className="w-4 h-4" />
-        <span className="text-[10px] tracking-tight">Mis Estudios</span>
+        <ScreenDeviceIcon
+          fillColor="#8b5cf6"
+          borderColor="#7c3aed"
+          accentColor="#ffffff"
+          isActive={activeView === 'menu'}
+        />
       </button>
 
-      {/* 2. Botón Sección Lectura (Centro) */}
+      {/* 2. Sección Lectura: Naranja Fuerte */}
       <button
         type="button"
         onClick={() => onViewChange('bible')}
-        className={`flex-[1.1] py-1 px-3 rounded-2xl flex flex-col items-center justify-center gap-0.5 relative transition-all ${
-          activeView === 'bible'
-            ? isDark
-              ? 'bg-amber-600 text-white font-bold shadow-md'
-              : 'bg-amber-600 text-white font-bold shadow-md'
-            : isDark
-            ? 'text-slate-400 hover:text-white'
-            : 'text-slate-500 hover:text-slate-900'
+        className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
+          activeView === 'bible' ? 'bg-black/5' : 'hover:bg-black/5'
         }`}
-        title="Sección Lectura: Biblia y Libros"
+        title="Lectura"
+        aria-label="Lectura"
       >
-        <div className="flex items-center gap-1">
-          <BookOpen className="w-4 h-4" />
-          {isParallelMode && (
-            <span
-              className={`text-[9px] px-1 py-0.2 rounded font-bold ${
-                activeView === 'bible'
-                  ? 'bg-white/25 text-white'
-                  : 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-300'
-              }`}
-              title="Modo Comparación activo"
-            >
-              1/2
-            </span>
-          )}
-        </div>
-        <span className="text-[10px] tracking-tight">
-          {isParallelMode ? 'Comparación' : 'Lectura'}
-        </span>
+        <ScreenDeviceIcon
+          fillColor="#ea580c"
+          borderColor="#c2410c"
+          accentColor="#ffffff"
+          isActive={activeView === 'bible'}
+        />
       </button>
 
-      {/* 3. Botón Sección Estudio (Derecha) */}
+      {/* 3. Sección Estudio: Blanco */}
       <button
         type="button"
         onClick={() => onViewChange('study')}
-        className={`flex-1 py-1 px-2 rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all ${
-          activeView === 'study'
-            ? isDark
-              ? 'bg-amber-600 text-white font-bold shadow-md'
-              : 'bg-amber-600 text-white font-bold shadow-md'
-            : isDark
-            ? 'text-slate-400 hover:text-white'
-            : 'text-slate-500 hover:text-slate-900'
+        className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
+          activeView === 'study' ? 'bg-black/5' : 'hover:bg-black/5'
         }`}
-        title="Sección Estudio: Cuaderno, Notas y Pizarra"
+        title="Estudio"
+        aria-label="Estudio"
       >
-        <StudyIcon className="w-4 h-4" />
-        <span className="text-[10px] tracking-tight">Estudio</span>
+        <ScreenDeviceIcon
+          fillColor="#ffffff"
+          borderColor="#cbd5e1"
+          accentColor="#94a3b8"
+          isActive={activeView === 'study'}
+        />
       </button>
-    </div>
+    </nav>
   );
 };
