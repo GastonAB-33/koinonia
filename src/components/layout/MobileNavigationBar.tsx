@@ -10,19 +10,16 @@ interface MobileNavigationBarProps {
 }
 
 interface ScreenIconProps {
-  fillColor: string;
-  borderColor: string;
-  accentColor: string;
+  color: string;
   isActive: boolean;
-  subBadge?: string;
 }
 
 const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
-  fillColor,
-  borderColor,
-  accentColor,
+  color,
   isActive
 }) => {
+  const isWhite = color.toLowerCase() === '#ffffff' || color.toLowerCase() === 'white';
+
   return (
     <div className="relative flex flex-col items-center">
       <svg
@@ -33,20 +30,27 @@ const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         className={`transition-all duration-200 transform ${
           isActive
-            ? 'scale-115 drop-shadow-[0_2px_6px_rgba(0,0,0,0.22)]'
-            : 'scale-95 opacity-55 hover:opacity-85'
+            ? 'scale-110 opacity-100'
+            : 'scale-95 opacity-40 hover:opacity-75'
         }`}
+        style={
+          isWhite
+            ? { filter: 'drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.35))' }
+            : isActive
+            ? { filter: `drop-shadow(0 2px 4px ${color}35)` }
+            : undefined
+        }
       >
-        {/* Rectángulo vertical como una pantalla de celular */}
+        {/* Rectángulo vertical (pantalla): Sin relleno, solo contorno de color */}
         <rect
           x="1"
           y="1"
           width="16"
           height="26"
           rx="3.5"
-          fill={fillColor}
-          stroke={borderColor}
-          strokeWidth="1.5"
+          fill="none"
+          stroke={color}
+          strokeWidth={isActive ? '2' : '1.6'}
         />
         {/* Ranura auricular/notch superior */}
         <line
@@ -54,8 +58,8 @@ const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
           y1="3.5"
           x2="11.5"
           y2="3.5"
-          stroke={accentColor}
-          strokeWidth="1"
+          stroke={color}
+          strokeWidth={isActive ? '1.5' : '1.2'}
           strokeLinecap="round"
         />
         {/* Barra inferior / home indicator */}
@@ -64,8 +68,8 @@ const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
           y1="24.5"
           x2="12"
           y2="24.5"
-          stroke={accentColor}
-          strokeWidth="1"
+          stroke={color}
+          strokeWidth={isActive ? '1.5' : '1.2'}
           strokeLinecap="round"
         />
       </svg>
@@ -75,7 +79,10 @@ const ScreenDeviceIcon: React.FC<ScreenIconProps> = ({
         className={`w-1.5 h-1.5 rounded-full mt-1.5 transition-all duration-200 ${
           isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
         }`}
-        style={{ backgroundColor: borderColor }}
+        style={{
+          backgroundColor: color,
+          boxShadow: isWhite ? '0 1px 2px rgba(0,0,0,0.3)' : undefined
+        }}
       />
     </div>
   );
@@ -99,76 +106,60 @@ export const MobileNavigationBar: React.FC<MobileNavigationBarProps> = ({
       }}
       aria-label="Navegación de secciones"
     >
-      {/* 1. Sección Mis Estudios: Violeta */}
+      {/* 1. Sección Mis Estudios: Violeta (solo contorno) */}
       <button
         type="button"
         onClick={() => onViewChange('menu')}
-        className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
-          activeView === 'menu' ? 'bg-black/5' : 'hover:bg-black/5'
-        }`}
+        className="p-1.5 rounded-xl transition-all duration-200 active:scale-90 focus:outline-none cursor-pointer"
         title="Mis Estudios"
         aria-label="Mis Estudios"
       >
         <ScreenDeviceIcon
-          fillColor="#8b5cf6"
-          borderColor="#7c3aed"
-          accentColor="#ffffff"
+          color="#8b5cf6"
           isActive={activeView === 'menu'}
         />
       </button>
 
-      {/* 2. Sección Lectura Principal: Naranja Fuerte */}
+      {/* 2. Sección Lectura Principal: Naranja Fuerte (solo contorno) */}
       <button
         type="button"
         onClick={() => onViewChange('bible')}
-        className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
-          activeView === 'bible' ? 'bg-black/5' : 'hover:bg-black/5'
-        }`}
+        className="p-1.5 rounded-xl transition-all duration-200 active:scale-90 focus:outline-none cursor-pointer"
         title="Lectura Principal"
         aria-label="Lectura Principal"
       >
         <ScreenDeviceIcon
-          fillColor="#ea580c"
-          borderColor="#c2410c"
-          accentColor="#ffffff"
+          color="#ea580c"
           isActive={activeView === 'bible'}
         />
       </button>
 
-      {/* 3. Sección Comparación (Solo si modo es 'al lado'): Ambos del mismo color naranja */}
+      {/* 3. Sección Comparación (Solo si modo es 'al lado'): Ambos del mismo color naranja (solo contorno) */}
       {isSideBySide && (
         <button
           type="button"
           onClick={() => onViewChange('bible-parallel')}
-          className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
-            activeView === 'bible-parallel' ? 'bg-black/5' : 'hover:bg-black/5'
-          }`}
+          className="p-1.5 rounded-xl transition-all duration-200 active:scale-90 focus:outline-none cursor-pointer"
           title="Lectura Comparación"
           aria-label="Lectura Comparación"
         >
           <ScreenDeviceIcon
-            fillColor="#ea580c"
-            borderColor="#c2410c"
-            accentColor="#ffffff"
+            color="#ea580c"
             isActive={activeView === 'bible-parallel'}
           />
         </button>
       )}
 
-      {/* 4. Sección Estudio: Blanco */}
+      {/* 4. Sección Estudio: Blanco (solo contorno) */}
       <button
         type="button"
         onClick={() => onViewChange('study')}
-        className={`p-2 rounded-2xl transition-all duration-200 active:scale-90 focus:outline-none ${
-          activeView === 'study' ? 'bg-black/5' : 'hover:bg-black/5'
-        }`}
+        className="p-1.5 rounded-xl transition-all duration-200 active:scale-90 focus:outline-none cursor-pointer"
         title="Estudio"
         aria-label="Estudio"
       >
         <ScreenDeviceIcon
-          fillColor="#ffffff"
-          borderColor="#cbd5e1"
-          accentColor="#94a3b8"
+          color="#ffffff"
           isActive={activeView === 'study'}
         />
       </button>
