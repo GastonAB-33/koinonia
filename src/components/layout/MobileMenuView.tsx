@@ -5,7 +5,9 @@ import { useStudyStore } from '../../store/useStudyStore';
 import { useSketchbookStore } from '../../store/useSketchbookStore';
 import { useCanvasStore } from '../../store/useCanvasStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCloudStore } from '../../store/useCloudStore';
 import { Study } from '../../types/study';
+import { cloudSyncService } from '../../services/cloud/cloudSyncService';
 
 import { BibleSelectorModal } from '../bible/BibleSelectorModal';
 import { StudyCameraModal } from '../study/StudyCameraModal';
@@ -14,6 +16,10 @@ import { UploadBookModal } from '../book/UploadBookModal';
 import { SmartSearchModal } from '../search/SmartSearchModal';
 import { CreateStudyModal } from '../study/CreateStudyModal';
 import { StudyDetailModal } from '../study/StudyDetailModal';
+import { ShareStudyModal } from '../cloud/ShareStudyModal';
+import { ImportStudyModal } from '../cloud/ImportStudyModal';
+import { CloudSettingsModal } from '../cloud/CloudSettingsModal';
+import { CloudSyncStatusBadge } from '../cloud/CloudSyncStatusBadge';
 import { GoogleLogo } from '../auth/GoogleLogo';
 
 import {
@@ -31,7 +37,13 @@ import {
   Heart,
   Palette,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Globe,
+  Users,
+  Share2,
+  Cloud,
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 
 interface MobileMenuViewProps {
@@ -66,6 +78,28 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
   } = useAuthStore();
   const activeUser = getActiveUser();
 
+  const {
+    isConfigModalOpen,
+    setIsConfigModalOpen,
+    isShareModalOpen,
+    setIsShareModalOpen,
+    studyToShare,
+    setStudyToShare,
+    isImportModalOpen,
+    setIsImportModalOpen,
+    sharedStudyToImport,
+    setSharedStudyToImport,
+    communityStudies,
+    loadCommunityStudies,
+    isLoadingCommunity
+  } = useCloudStore();
+
+  // Pestañas internas de Sección 1: "Mis Estudios" o "Compartidos por Amigos"
+  const [studiesTab, setStudiesTab] = useState<'mine' | 'community'>('mine');
+  const [friendCodeInput, setFriendCodeInput] = useState('');
+  const [searchingFriendCode, setSearchingFriendCode] = useState(false);
+  const [friendCodeError, setFriendCodeError] = useState<string | null>(null);
+
   // Modales
   const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -86,6 +120,13 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
+  // Cargar estudios comunitarios cuando el usuario abre la pestaña
+  useEffect(() => {
+    if (studiesTab === 'community') {
+      loadCommunityStudies();
+    }
+  }, [studiesTab, loadCommunityStudies]);
+
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -95,6 +136,24 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
       }
     } else {
       setIsDownloadModalOpen(true);
+    }
+  };
+
+  const handleSearchFriendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!friendCodeInput.trim()) return;
+    setSearchingFriendCode(true);
+    setFriendCodeError(null);
+    try {
+      const found = await cloudSyncService.fetchSharedStudyByCode(friendCodeInput.trim());
+      if (found) {
+        setSharedStudyToImport(found);
+        setFriendCodeInput('');
+      } else {
+        setFriendCodeError('No se encontró ningún estudio con ese enlace o código.');
+      }
+    } finally {
+      setSearchingFriendCode(false);
     }
   };
 
@@ -127,19 +186,24 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
           </div>
         </div>
 
-        {/* Acceso directo a Sección Lectura */}
-        <button
-          onClick={onGoToBible}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors border ${
-            isDark
-              ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500'
-              : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700'
-          }`}
-          title="Ir a la Sección Lectura (Biblia y Libros)"
-        >
-          <span>Lectura</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Indicador de Nube */}
+          <CloudSyncStatusBadge compact />
+
+          {/* Acceso directo a Sección Lectura */}
+          <button
+            onClick={onGoToBible}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors border ${
+              isDark
+                ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500'
+                : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700'
+            }`}
+            title="Ir a la Sección Lectura (Biblia y Libros)"
+          >
+            <span>Lectura</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* 2. Barra Superior de Acciones Rápidas (Descargar App, Subir Libro, Buscar con Filtros) */}
@@ -197,102 +261,274 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
         {/* SECCIÓN PRINCIPAL: LISTA DE MIS ESTUDIOS CON BADGES Y MODAL EMERGENTE   */}
         {/* ========================================================================= */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookMarked className="w-4 h-4 text-amber-500" />
-              <h2 className="font-bold text-sm tracking-tight">Tus Estudios Bíblicos</h2>
-              <span className="text-[11px] font-semibold text-slate-400">({studies.length})</span>
-            </div>
-
-            {/* BOTÓN "+ NUEVO ESTUDIO" CON MODAL EMERGENTE */}
+          {/* Alternador de Pestañas: [Mis Estudios] vs [Compartidos con Amigos] */}
+          <div
+            className={`p-1 rounded-2xl border flex items-center text-xs font-bold ${
+              isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'
+            }`}
+          >
             <button
-              onClick={() => setIsCreateStudyOpen(true)}
-              className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-950/20 active:scale-98 transition-all cursor-pointer"
+              type="button"
+              onClick={() => setStudiesTab('mine')}
+              className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                studiesTab === 'mine'
+                  ? isDark
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-white text-slate-900 shadow-xs'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Nuevo Estudio</span>
+              <BookMarked className="w-3.5 h-3.5" />
+              <span>Mis Estudios ({studies.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setStudiesTab('community')}
+              className={`flex-1 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                studiesTab === 'community'
+                  ? isDark
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-white text-slate-900 shadow-xs'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Amigos & Comunidad</span>
             </button>
           </div>
 
-          {/* Tarjetas de Estudios */}
-          <div className="space-y-2.5">
-            {studies.map((study) => {
-              const isActive = study.id === activeStudyId;
-              const sketchbookData = getStudyData(study.id);
-              const pageCount = sketchbookData?.pages?.length || 1;
-              const textBlockCount = study.blocks?.length || 0;
-              const nodeCount = canvasByStudy[study.id]?.nodes?.length || 0;
-              const tagsCount = study.tags?.length || 0;
+          {/* VISTA 1: TUS ESTUDIOS PERSONALES */}
+          {studiesTab === 'mine' ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-medium">Tus cuadernos y apuntes exegéticos</span>
 
-              return (
-                <div
-                  key={study.id}
-                  onClick={() => setSelectedStudyForDetail(study)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group shadow-2xs ${
-                    isActive
-                      ? isDark
-                        ? 'bg-gradient-to-br from-slate-900 to-amber-950/30 border-amber-600/80 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/40'
-                        : 'bg-gradient-to-br from-amber-50/90 to-orange-50/40 border-amber-400/90 shadow-xs ring-1 ring-amber-400/40'
-                      : isDark
-                      ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
-                      : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }`}
+                {/* BOTÓN "+ NUEVO ESTUDIO" CON MODAL EMERGENTE */}
+                <button
+                  onClick={() => setIsCreateStudyOpen(true)}
+                  className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-950/20 active:scale-98 transition-all cursor-pointer"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        <h3 className="font-bold text-sm leading-snug line-clamp-2">
-                          {study.title}
-                        </h3>
-                        {isActive && (
-                          <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-500 text-slate-950 shadow-2xs shrink-0">
-                            En uso
-                          </span>
-                        )}
-                      </div>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nuevo Estudio</span>
+                </button>
+              </div>
 
-                      {study.description && (
-                        <p className="text-xs text-slate-400 dark:text-slate-400 line-clamp-2 mb-2 leading-relaxed">
-                          {study.description}
-                        </p>
-                      )}
+              {/* Tarjetas de Estudios */}
+              <div className="space-y-2.5">
+                {studies.map((study) => {
+                  const isActive = study.id === activeStudyId;
+                  const sketchbookData = getStudyData(study.id);
+                  const pageCount = sketchbookData?.pages?.length || 1;
+                  const textBlockCount = study.blocks?.length || 0;
+                  const nodeCount = canvasByStudy[study.id]?.nodes?.length || 0;
+                  const tagsCount = study.tags?.length || 0;
 
-                      {/* Iconitos de métricas solicitados: páginas, notas, nodos y etiquetas */}
-                      <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-                        <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
-                          <BookOpen className="w-3 h-3 text-amber-500" />
-                          <span>{pageCount} {pageCount === 1 ? 'pág' : 'págs'}</span>
-                        </span>
+                  return (
+                    <div
+                      key={study.id}
+                      onClick={() => setSelectedStudyForDetail(study)}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group shadow-2xs ${
+                        isActive
+                          ? isDark
+                            ? 'bg-gradient-to-br from-slate-900 to-amber-950/30 border-amber-600/80 shadow-[0_0_15px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/40'
+                            : 'bg-gradient-to-br from-amber-50/90 to-orange-50/40 border-amber-400/90 shadow-xs ring-1 ring-amber-400/40'
+                          : isDark
+                          ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                          : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                            <h3 className="font-bold text-sm leading-snug line-clamp-2">
+                              {study.title}
+                            </h3>
+                            {isActive && (
+                              <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-500 text-slate-950 shadow-2xs shrink-0">
+                                En uso
+                              </span>
+                            )}
+                            {study.visibility === 'public' && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center gap-0.5" title="Público en la nube">
+                                <Globe className="w-2.5 h-2.5" /> Enlace
+                              </span>
+                            )}
+                            {study.visibility === 'friends' && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-0.5" title="Compartido con amigos">
+                                <Users className="w-2.5 h-2.5" /> Amigos
+                              </span>
+                            )}
+                          </div>
 
-                        <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
-                          <FileText className="w-3 h-3 text-emerald-500" />
-                          <span>{textBlockCount} {textBlockCount === 1 ? 'nota' : 'notas'}</span>
-                        </span>
+                          {study.description && (
+                            <p className="text-xs text-slate-400 dark:text-slate-400 line-clamp-2 mb-2 leading-relaxed">
+                              {study.description}
+                            </p>
+                          )}
 
-                        {nodeCount > 0 && (
-                          <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
-                            <Layers className="w-3 h-3 text-blue-500" />
-                            <span>{nodeCount} {nodeCount === 1 ? 'nodo' : 'nodos'}</span>
-                          </span>
-                        )}
+                          {/* Iconitos de métricas solicitados: páginas, notas, nodos y etiquetas */}
+                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-slate-500 dark:text-slate-400 pt-1">
+                            <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
+                              <BookOpen className="w-3 h-3 text-amber-500" />
+                              <span>{pageCount} {pageCount === 1 ? 'pág' : 'págs'}</span>
+                            </span>
 
-                        {tagsCount > 0 && (
-                          <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                            <Tag className="w-3 h-3 text-purple-500" />
-                            <span>{tagsCount} {tagsCount === 1 ? 'tag' : 'tags'}</span>
-                          </span>
-                        )}
+                            <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
+                              <FileText className="w-3 h-3 text-emerald-500" />
+                              <span>{textBlockCount} {textBlockCount === 1 ? 'nota' : 'notas'}</span>
+                            </span>
+
+                            {nodeCount > 0 && (
+                              <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60">
+                                <Layers className="w-3 h-3 text-blue-500" />
+                                <span>{nodeCount} {nodeCount === 1 ? 'nodo' : 'nodos'}</span>
+                              </span>
+                            )}
+
+                            {tagsCount > 0 && (
+                              <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                                <Tag className="w-3 h-3 text-purple-500" />
+                                <span>{tagsCount} {tagsCount === 1 ? 'tag' : 'tags'}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0 self-center">
+                          {/* Botón rápido para compartir */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStudyToShare(study);
+                            }}
+                            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-400 hover:text-indigo-400 transition-colors"
+                            title="Compartir este estudio"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
+                          </button>
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        </div>
                       </div>
                     </div>
-
-                    <div className="p-1.5 rounded-xl text-slate-400 group-hover:text-amber-500 shrink-0 self-center">
-                      <ChevronRight className="w-5 h-5" />
-                    </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* VISTA 2: ESTUDIOS COMPARTIDOS POR AMIGOS Y COMUNIDAD */
+            <div className="space-y-4">
+              {/* Formulario para ingresar un código de enlace de un amigo */}
+              <form
+                onSubmit={handleSearchFriendCode}
+                className={`p-3.5 rounded-2xl border text-xs space-y-2 ${
+                  isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Share2 className="w-4 h-4 text-indigo-400" />
+                  <span className="font-bold text-xs">Cargar Estudio de un Amigo</span>
                 </div>
-              );
-            })}
-          </div>
+                <p className="text-[11px] text-slate-400">
+                  ¿Te enviaron un código o enlace por WhatsApp? Pégalo aquí para verlo y clonarlo:
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={friendCodeInput}
+                    onChange={(e) => setFriendCodeInput(e.target.value)}
+                    placeholder="ej. koinonia-8f9a2b..."
+                    className={`flex-1 px-3 py-1.5 rounded-xl border text-xs font-mono focus:outline-none ${
+                      isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    disabled={searchingFriendCode || !friendCodeInput.trim()}
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {searchingFriendCode ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
+                    <span>Abrir</span>
+                  </button>
+                </div>
+                {friendCodeError && (
+                  <p className="text-[11px] text-rose-400 pt-0.5">{friendCodeError}</p>
+                )}
+              </form>
+
+              {/* Lista de Estudios de la Comunidad / Amigos */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Estudios Disponibles ({communityStudies.length})
+                  </span>
+                  <button
+                    onClick={() => loadCommunityStudies()}
+                    className="text-[11px] text-indigo-400 hover:underline flex items-center gap-1"
+                  >
+                    Actualizar
+                  </button>
+                </div>
+
+                {isLoadingCommunity ? (
+                  <div className="p-8 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                    <span>Cargando estudios de la nube...</span>
+                  </div>
+                ) : communityStudies.length === 0 ? (
+                  <div
+                    className={`p-6 rounded-2xl border text-center text-xs space-y-2 ${
+                      isDark ? 'bg-slate-950/40 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
+                  >
+                    <Users className="w-8 h-8 mx-auto text-indigo-400 opacity-60" />
+                    <p className="font-semibold">Aún no hay estudios de amigos en tu nube.</p>
+                    <p className="text-[11px] opacity-80 max-w-xs mx-auto">
+                      Comparte uno de tus estudios usando el botón "Compartir" para que tus amigos puedan conectarse.
+                    </p>
+                  </div>
+                ) : (
+                  communityStudies.map((cs) => (
+                    <div
+                      key={cs.id}
+                      onClick={() => setSharedStudyToImport(cs)}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                        isDark
+                          ? 'bg-slate-900 border-slate-800 hover:border-indigo-500/70 hover:bg-slate-850'
+                          : 'bg-white border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/20'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[11px] font-bold text-indigo-400">
+                              @{cs.author}
+                            </span>
+                            <span className="text-[10px] text-slate-400">·</span>
+                            <span className="text-[10px] text-slate-400">
+                              {cs.blocks?.length || 0} notas
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm leading-snug">{cs.title}</h4>
+                          {cs.description && (
+                            <p className="text-xs text-slate-400 line-clamp-2 mt-1">{cs.description}</p>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                          Ver / Clonar
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
@@ -354,7 +590,7 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
         {/* ========================================================================= */}
         {/* SECCIÓN DE CUENTA / GOOGLE SIGN IN & MODO PAREJA                         */}
         {/* ========================================================================= */}
-        <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+        <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
           {user ? (
             <div
               className={`p-4 rounded-2xl border shadow-sm space-y-3 transition-colors ${
@@ -405,6 +641,20 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
                   title="Cerrar sesión"
                 >
                   <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Botón de configuración de nube */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                  <Cloud className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Nube Koinonía</span>
+                </span>
+                <button
+                  onClick={() => setIsConfigModalOpen(true)}
+                  className="text-[11px] font-bold text-blue-500 hover:underline cursor-pointer"
+                >
+                  Gestionar Nube / Firebase
                 </button>
               </div>
 
@@ -570,31 +820,54 @@ export const MobileMenuView: React.FC<MobileMenuViewProps> = ({ onGoToBible, onG
         }}
       />
 
-      {/* 3. Modal de Descarga de App Web (PWA) */}
+      {/* 3. Modal de Compartir Estudio en la Nube */}
+      <ShareStudyModal
+        study={studyToShare}
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+      />
+
+      {/* 4. Modal para Importar / Ver Estudio Compartido de un Amigo */}
+      <ImportStudyModal
+        studyPayload={sharedStudyToImport}
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImported={() => {
+          onGoToStudy();
+        }}
+      />
+
+      {/* 5. Modal de Configuración y Estado de la Nube (Firebase) */}
+      <CloudSettingsModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+      />
+
+      {/* 6. Modal de Descarga de App Web (PWA) */}
       <DownloadAppModal
         isOpen={isDownloadModalOpen}
         onClose={() => setIsDownloadModalOpen(false)}
       />
 
-      {/* 4. Modal para Subir Libro con Fotos & IA */}
+      {/* 7. Modal para Subir Libro con Fotos & IA */}
       <UploadBookModal
         isOpen={isUploadBookOpen}
         onClose={() => setIsUploadBookOpen(false)}
       />
 
-      {/* 5. Modal de Búsqueda Inteligente con Filtros */}
+      {/* 8. Modal de Búsqueda Inteligente con Filtros */}
       <SmartSearchModal
         isOpen={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
       />
 
-      {/* 6. Modal Selector de Libros Bíblicos */}
+      {/* 9. Modal Selector de Libros Bíblicos */}
       <BibleSelectorModal
         isOpen={isBookPickerOpen}
         onClose={() => setIsBookPickerOpen(false)}
       />
 
-      {/* 7. Modal de Cámara / Escáner directo */}
+      {/* 10. Modal de Cámara / Escáner directo */}
       <StudyCameraModal
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}

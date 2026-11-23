@@ -99,6 +99,14 @@ interface BibleState {
   setParallelVersion: (version: BibleVersion) => Promise<void>;
   addHighlight: (verse: BibleVerse, color: HighlightColor) => void;
   removeHighlight: (bookId: string, chapter: number, verse: number) => void;
+  addSentenceHighlight: (
+    bookId: string,
+    chapter: number,
+    sentenceKey: string,
+    color: HighlightColor,
+    text?: string
+  ) => void;
+  removeSentenceHighlight: (sentenceKey: string) => void;
   setSelectedVerse: (verse: BibleVerse | null) => void;
 }
 
@@ -401,6 +409,33 @@ export const useBibleStore = create<BibleState>()(
           highlights: get().highlights.filter(
             (h) => !(h.bookId === bookId && h.chapter === chapter && h.verse === verse)
           )
+        });
+      },
+
+      addSentenceHighlight: (
+        bookId: string,
+        chapter: number,
+        sentenceKey: string,
+        color: HighlightColor,
+        text?: string
+      ) => {
+        const existing = get().highlights.filter((h) => h.sentenceKey !== sentenceKey);
+        const newHighlight: Highlight = {
+          id: `hl-sent-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          bookId,
+          chapter,
+          verse: 0,
+          sentenceKey,
+          text,
+          color,
+          createdAt: new Date().toISOString()
+        };
+        set({ highlights: [...existing, newHighlight] });
+      },
+
+      removeSentenceHighlight: (sentenceKey: string) => {
+        set({
+          highlights: get().highlights.filter((h) => h.sentenceKey !== sentenceKey)
         });
       },
 

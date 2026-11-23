@@ -1,4 +1,5 @@
 import { BibleVersion } from './bible';
+import { StudyVisibility, StudyCollaborator } from './cloud';
 
 export interface VerseReference {
   bookId: string;
@@ -7,6 +8,8 @@ export interface VerseReference {
   verse: number;
   version: BibleVersion;
   text: string;
+  sentenceKeys?: string[];
+  sentenceTexts?: string[];
 }
 
 export type NoteBlockType = 'text' | 'verse_quote' | 'heading' | 'theological_insight' | 'reflection';
@@ -28,4 +31,15 @@ export interface Study {
   updatedAt: string;
   author: string; // "Alejandro" or "Esposa" for collaborative note
   blocks: StudyBlock[];
+
+  // Campos para la Nube y Amigos
+  visibility?: StudyVisibility;
+  ownerId?: string;
+  ownerEmail?: string;
+  ownerPicture?: string;
+  shareCode?: string;
+  isCloudSynced?: boolean;
+  cloudUpdatedAt?: string;
+  collaborators?: StudyCollaborator[];
+  allowCopy?: boolean;
 }

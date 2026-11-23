@@ -6,7 +6,8 @@ import {
   MiniMap,
   BackgroundVariant,
   Node,
-  NodeChange
+  NodeChange,
+  ConnectionMode
 } from '@xyflow/react';
 import { useCanvasStore } from '../../store/useCanvasStore';
 import { useStudyStore } from '../../store/useStudyStore';
@@ -51,6 +52,7 @@ export const InfiniteCanvas: React.FC = () => {
         nodes={currentCanvas.nodes as unknown as Node[]}
         edges={currentCanvas.edges}
         nodeTypes={nodeTypes}
+        connectionMode={ConnectionMode.Loose}
         onNodesChange={(changes: NodeChange[]) => onNodesChange(activeStudyId, changes)}
         onEdgesChange={(changes) => onEdgesChange(activeStudyId, changes)}
         onConnect={(connection) => onConnect(activeStudyId, connection)}

@@ -13,6 +13,7 @@ import {
   Highlighter,
   Eraser,
   MousePointer,
+  Hand,
   RotateCcw,
   RotateCw,
   Plus,
@@ -31,6 +32,8 @@ import {
 const LIGHT_SKETCH_COLORS = [
   { id: '#88804B', label: 'Verde Musgo', bg: 'bg-[#88804B]' },
   { id: '#C4BC7B', label: 'Mostaza Olivo', bg: 'bg-[#C4BC7B]' },
+  { id: '#f43f5e', label: 'Rosa Resaltador', bg: 'bg-[#f43f5e]' },
+  { id: '#fbbf24', label: 'Amarillo Pastel', bg: 'bg-[#fbbf24]' },
   { id: '#B7D6D9', label: 'Celeste Pastel', bg: 'bg-[#B7D6D9]' },
   { id: '#dc2626', label: 'Rojo Tinta', bg: 'bg-[#dc2626]' },
   { id: '#2563eb', label: 'Azul Estudio', bg: 'bg-[#2563eb]' },
@@ -140,7 +143,7 @@ export const SketchbookToolbar: React.FC = () => {
       toggleDropdown('color');
     } else {
       setActiveDrawingTool(toolId);
-      if (toolId === 'eraser' || toolId === 'select') {
+      if (toolId === 'eraser' || toolId === 'select' || toolId === 'hand') {
         if (openDropdown === 'color') setOpenDropdown(null);
       }
     }
@@ -310,10 +313,28 @@ export const SketchbookToolbar: React.FC = () => {
                 ? 'text-slate-400 hover:text-white'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
-            title="Puntero: seleccionar texto, mover y navegar sin rayar la hoja"
+            title="Puntero: seleccionar texto y bloques"
           >
             <MousePointer className="w-3.5 h-3.5" />
-            <span>Puntero</span>
+            <span className="hidden sm:inline">Puntero</span>
+          </button>
+
+          {/* B. MANO / MOVER (Desplazamiento libre tipo pizarra) */}
+          <button
+            onClick={() => handleToolClick('hand')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              activeDrawingTool === 'hand'
+                ? isDark
+                  ? 'bg-slate-700 text-amber-400 shadow-xs font-bold ring-1 ring-amber-400/30'
+                  : 'bg-white text-[#88804B] shadow-xs font-bold ring-1 ring-[#88804B]/30'
+                : isDark
+                ? 'text-slate-400 hover:text-white'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Mover (Mano): arrastrar para desplazarse libremente por la hoja infinita"
+          >
+            <Hand className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mover</span>
           </button>
 
           {/* B. LÁPIZ (Dibujo fino) */}
@@ -331,10 +352,10 @@ export const SketchbookToolbar: React.FC = () => {
             title="Lápiz: dibujo libre y notas manuscritas (pulsa de nuevo para cambiar color)"
           >
             <PenTool className="w-3.5 h-3.5" />
-            <span>Lápiz</span>
+            <span className="hidden sm:inline">Lápiz</span>
           </button>
 
-          {/* C. MARCADOR (Resaltador translúcido) */}
+          {/* D. MARCADOR (Resaltador translúcido) */}
           <button
             onClick={() => handleToolClick('highlighter')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
@@ -349,10 +370,10 @@ export const SketchbookToolbar: React.FC = () => {
             title="Marcador: resaltador translúcido para textos y versículos"
           >
             <Highlighter className="w-3.5 h-3.5" />
-            <span>Marcador</span>
+            <span className="hidden sm:inline">Marcador</span>
           </button>
 
-          {/* D. GOMA (Borrador de trazos) */}
+          {/* E. GOMA (Borrador de trazos) */}
           <button
             onClick={() => handleToolClick('eraser')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
@@ -367,7 +388,7 @@ export const SketchbookToolbar: React.FC = () => {
             title="Goma de borrar: eliminar trazos dibujados"
           >
             <Eraser className="w-3.5 h-3.5" />
-            <span>Goma</span>
+            <span className="hidden sm:inline">Goma</span>
           </button>
 
           {/* E. MENÚ DESPLEGABLE DE COLOR (Activo únicamente al usar Lápiz o Marcador) */}

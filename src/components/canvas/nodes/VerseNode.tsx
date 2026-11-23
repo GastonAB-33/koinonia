@@ -21,9 +21,11 @@ export const VerseNode = memo(({ id, data, isConnectable }: NodeProps & { data: 
           : 'bg-white/95 border-amber-400/80 text-slate-800'
       }`}
     >
-      {/* Handles para conexiones dirigidas */}
-      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="!bg-amber-500" />
-      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="!bg-amber-500" />
+      {/* Handles para conexiones en los 4 costados con id explícito */}
+      <Handle type="source" id="top" position={Position.Top} isConnectable={isConnectable} />
+      <Handle type="source" id="left" position={Position.Left} isConnectable={isConnectable} />
+      <Handle type="source" id="right" position={Position.Right} isConnectable={isConnectable} />
+      <Handle type="source" id="bottom" position={Position.Bottom} isConnectable={isConnectable} />
 
       {/* Cabecera del nodo */}
       <div className={`flex items-center justify-between pb-2 mb-2 border-b ${isDark ? 'border-amber-900/60' : 'border-amber-100'}`}>
@@ -59,9 +61,6 @@ export const VerseNode = memo(({ id, data, isConnectable }: NodeProps & { data: 
         "{data.text}"
       </p>
 
-      {/* Handles de salida */}
-      <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="!bg-amber-500" />
-      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="!bg-amber-500" />
     </div>
   );
 });

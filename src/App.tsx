@@ -1,15 +1,25 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Header } from './components/layout/Header';
 import { ResizableLayout, ResizableLayoutHandle } from './components/layout/ResizableLayout';
 import { LexiconDrawer } from './components/lexicon/LexiconDrawer';
 import { useThemeStore } from './store/useThemeStore';
 import { useSketchbookStore } from './store/useSketchbookStore';
+import { useCloudStore } from './store/useCloudStore';
 
 export const App: React.FC = () => {
   const [rightPanelTab, setRightPanelTab] = useState<'editor' | 'freebook' | 'sketchbook' | 'canvas'>('sketchbook');
   const layoutRef = useRef<ResizableLayoutHandle>(null);
   const { currentTheme } = useThemeStore();
   const { setActiveDrawingTool } = useSketchbookStore();
+  const { checkUrlForSharedStudy, pullFromCloud } = useCloudStore();
+
+  useEffect(() => {
+    // 1. Detectar si la URL contiene un estudio compartido de un amigo (?study=...)
+    checkUrlForSharedStudy();
+
+    // 2. Si hay conexión a la nube configurada, sincronizar al iniciar
+    pullFromCloud();
+  }, [checkUrlForSharedStudy, pullFromCloud]);
 
   const handleSetRightPanelTab = (tab: 'editor' | 'freebook' | 'sketchbook' | 'canvas') => {
     setActiveDrawingTool('select');

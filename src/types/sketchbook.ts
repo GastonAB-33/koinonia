@@ -3,7 +3,7 @@ import { FreeVerseRef } from './freebook';
 export type SketchFontFamily = 'serif' | 'sans' | 'handwriting' | 'mono';
 export type SketchFontSize = 'sm' | 'base' | 'lg' | 'xl' | '2xl';
 export type SketchPagePattern = 'cornell' | 'grid' | 'dots' | 'blank';
-export type SketchDrawingTool = 'pen' | 'highlighter' | 'eraser' | 'arrow' | 'rect' | 'circle' | 'select';
+export type SketchDrawingTool = 'pen' | 'highlighter' | 'eraser' | 'arrow' | 'rect' | 'circle' | 'select' | 'hand';
 
 export interface SketchDrawingPoint {
   x: number;

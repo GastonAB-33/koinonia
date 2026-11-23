@@ -12,6 +12,11 @@ import { UserProfileMenu } from '../auth/UserProfileMenu';
 import { GoogleAuthModal } from '../auth/GoogleAuthModal';
 import { ThemeDropdown } from './ThemeDropdown';
 import { useIsMobile } from '../../hooks/useMediaQuery';
+import { useCloudStore } from '../../store/useCloudStore';
+import { CloudSyncStatusBadge } from '../cloud/CloudSyncStatusBadge';
+import { CloudSettingsModal } from '../cloud/CloudSettingsModal';
+import { ShareStudyModal } from '../cloud/ShareStudyModal';
+import { ImportStudyModal } from '../cloud/ImportStudyModal';
 import {
   BookOpen,
   Menu,
@@ -56,6 +61,17 @@ export const Header: React.FC<HeaderProps> = ({
   const activeCustomBook = customBooks.find((b) => b.id === activeCustomBookId);
   const activeStudy = getActiveStudy();
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
+
+  const {
+    isConfigModalOpen,
+    setIsConfigModalOpen,
+    isShareModalOpen,
+    setIsShareModalOpen,
+    studyToShare,
+    isImportModalOpen,
+    setIsImportModalOpen,
+    sharedStudyToImport
+  } = useCloudStore();
 
   // Atajos de teclado Ctrl+E (Estudios) y Ctrl+K (Búsqueda inteligente)
   useEffect(() => {
@@ -250,6 +266,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Selector Desplegable de Temas y Paletas de Cuaderno Digital */}
         <ThemeDropdown />
 
+        {/* Indicador de Sincronización en la Nube */}
+        <CloudSyncStatusBadge />
+
         {/* BOTÓN 1 SOLICITADO: SUBIR LIBRO (FOTOS + IA) */}
         <button
           onClick={() => setIsUploadBookOpen(true)}
@@ -383,6 +402,11 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Modal de Búsqueda Inteligente con Filtros */}
       <SmartSearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} />
+
+      {/* Modales de Sincronización en la Nube y Amigos */}
+      <CloudSettingsModal isOpen={isConfigModalOpen} onClose={() => setIsConfigModalOpen(false)} />
+      <ShareStudyModal study={studyToShare} isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} />
+      <ImportStudyModal studyPayload={sharedStudyToImport} isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
     </header>
   );
 };

@@ -34,7 +34,7 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
   const { openLexicon } = useLexiconStore();
   const { addPhraseToActiveStudy } = useStudyStore();
   const { addPhraseToSketchbook } = useSketchbookStore();
-  const { books } = useBibleStore();
+  const { books, customBooks } = useBibleStore();
   const { currentTheme } = useThemeStore();
 
   const [copied, setCopied] = useState(false);
@@ -80,9 +80,12 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
     setCoords({ top, left });
   }, [targetRect]);
 
+  const customBook = customBooks?.find((cb) => cb.id === verse.bookId);
   const book = books.find((b) => b.id.toUpperCase() === verse.bookId.toUpperCase());
-  const bookName = book ? book.name : verse.bookId;
-  const verseRef = `${bookName} ${verse.chapter}:${verse.verse}`;
+  const bookName = customBook ? customBook.title : (book ? book.name : verse.bookId);
+  const verseRef = customBook
+    ? `${bookName} Cap. ${verse.chapter} (§ ${verse.verse})`
+    : `${bookName} ${verse.chapter}:${verse.verse}`;
 
   const handleLexicon = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -116,7 +119,9 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const citation = `«${phrase.trim()}» (${verseRef} ${verse.version})`;
+    const citation = customBook
+      ? `«${phrase.trim()}» (${verseRef})`
+      : `«${phrase.trim()}» (${verseRef} ${verse.version})`;
     navigator.clipboard.writeText(citation);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -131,12 +136,12 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
       style={{
         top: `${coords.top}px`,
         left: `${coords.left}px`,
-        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+        backgroundColor: isDark ? '#0f172a' : '#ffffff',
         opacity: 1
       }}
-      className={`fixed z-[9999] flex items-center gap-1.5 p-2 rounded-2xl border-2 shadow-2xl animate-in fade-in zoom-in-95 duration-150 select-none max-w-[calc(100vw-28px)] overflow-x-auto ${
+      className={`fixed z-[9999] flex items-center gap-1.5 p-2 rounded-2xl border-2 shadow-2xl select-none max-w-[calc(100vw-28px)] overflow-x-auto ${
         isDark
-          ? 'bg-slate-800 border-slate-600 shadow-[0_16px_50px_rgba(0,0,0,0.95)] ring-1 ring-white/20 text-white'
+          ? 'bg-slate-900 border-slate-700 shadow-[0_16px_50px_rgba(0,0,0,0.95)] ring-1 ring-white/10 text-white'
           : 'bg-white border-slate-300 text-slate-800 shadow-2xl ring-1 ring-black/5'
       }`}
       onMouseDown={(e) => {
@@ -176,7 +181,7 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
         onClick={handleLexicon}
         className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all border shrink-0 ${
           isDark
-            ? 'bg-purple-900/90 border-purple-500/80 text-purple-100 hover:bg-purple-800 hover:text-white shadow-[0_0_12px_rgba(168,85,247,0.35)]'
+            ? 'bg-purple-900 border-purple-500 text-purple-100 hover:bg-purple-800 hover:text-white shadow-[0_0_12px_rgba(168,85,247,0.35)]'
             : 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100 hover:border-purple-300 shadow-2xs'
         }`}
         title={`Analizar "${cleanPhrase}" en lengua original (Griego/Hebreo) con Strong`}
@@ -193,7 +198,7 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
           addedToStudy
             ? 'bg-emerald-600 border-emerald-500 text-white'
             : isDark
-            ? 'bg-emerald-900/90 border-emerald-500/80 text-emerald-100 hover:bg-emerald-800 hover:text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+            ? 'bg-emerald-900 border-emerald-500 text-emerald-100 hover:bg-emerald-800 hover:text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]'
             : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 shadow-2xs'
         }`}
         title="Insertar cita textual de la frase en el Cuaderno de Estudio activo"
@@ -219,7 +224,7 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
           addedToSketchbook
             ? 'bg-amber-600 border-amber-500 text-white'
             : isDark
-            ? 'bg-amber-900/90 border-amber-500/80 text-amber-100 hover:bg-amber-800 hover:text-white shadow-[0_0_12px_rgba(245,158,11,0.35)]'
+            ? 'bg-amber-900 border-amber-500 text-amber-100 hover:bg-amber-800 hover:text-white shadow-[0_0_12px_rgba(245,158,11,0.35)]'
             : 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 hover:border-amber-300 shadow-2xs'
         }`}
         title="Insertar frase en la hoja del Sketchbook / Cornell"
@@ -242,7 +247,7 @@ export const PhraseSelectionMenu: React.FC<PhraseSelectionMenuProps> = ({
         onClick={handleCopy}
         className={`p-1.5 rounded-xl transition-colors border shrink-0 ${
           isDark
-            ? 'border-slate-600 bg-slate-700/80 hover:bg-slate-600 text-white'
+            ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-white'
             : 'border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900'
         }`}
         title="Copiar frase con referencia bíblica"

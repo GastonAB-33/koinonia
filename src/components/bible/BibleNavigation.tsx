@@ -125,10 +125,10 @@ export const BibleNavigation: React.FC = () => {
   return (
     <>
       <div
-        className={`border-b px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 transition-colors ${
+        className={`border-b px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 transition-colors relative z-50 shadow-xs ${
           isDark
-            ? 'bg-slate-900/90 border-slate-800 text-white'
-            : 'bg-white/80 backdrop-blur-sm border-slate-200/90 text-slate-800'
+            ? 'bg-slate-900 border-slate-800 text-white'
+            : 'bg-white border-slate-200 text-slate-800'
         }`}
       >
         {/* Selector de Libro, Capítulo y Versículo */}
@@ -261,10 +261,10 @@ export const BibleNavigation: React.FC = () => {
             {/* Panel Desplegable de Versiones Bíblicas */}
             {isVersionDropdownOpen && (
               <div
-                style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', opacity: 1 }}
-                className={`absolute left-0 sm:left-0 top-full mt-1.5 w-64 max-w-[calc(100vw-32px)] rounded-2xl p-2 z-[100] shadow-[0_12px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 transition-all animate-in fade-in zoom-in-95 duration-150 ${
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', zIndex: 9999, opacity: 1 }}
+                className={`absolute left-0 sm:left-0 top-full mt-1.5 w-64 max-w-[calc(100vw-32px)] rounded-2xl p-2 z-[9999] shadow-2xl border-2 transition-all ${
                   isDark
-                    ? 'bg-slate-800 border-slate-600 text-white'
+                    ? 'bg-slate-900 border-slate-700 text-white'
                     : 'bg-white border-slate-300 text-slate-900'
                 }`}
               >
@@ -284,14 +284,14 @@ export const BibleNavigation: React.FC = () => {
                           setVersion(v.id);
                           setIsVersionDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors ${
+                        className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
                           isSelected
                             ? isDark
-                              ? 'bg-amber-950/80 text-amber-300 font-bold border border-amber-800/70'
+                              ? 'bg-amber-950 text-amber-300 font-bold border border-amber-800/70'
                               : 'bg-amber-50 text-amber-900 font-bold border border-amber-200'
                             : isDark
-                            ? 'hover:bg-slate-700/70 text-slate-200'
-                            : 'hover:bg-slate-100 text-slate-700'
+                            ? 'bg-slate-900 border border-slate-800 hover:bg-slate-700/70 text-slate-200'
+                            : 'bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700'
                         }`}
                       >
                         <div className="flex flex-col">
@@ -355,10 +355,10 @@ export const BibleNavigation: React.FC = () => {
             {/* Panel Desplegable de los 3 Modos de Lectura */}
             {isCompareDropdownOpen && (
               <div
-                style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff', opacity: 1 }}
-                className={`absolute right-0 top-full mt-1.5 w-80 max-w-[calc(100vw-24px)] rounded-2xl p-2.5 z-[100] shadow-[0_12px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.95)] border-2 transition-all animate-in fade-in zoom-in-95 duration-150 ${
+                style={{ backgroundColor: isDark ? '#0f172a' : '#ffffff', zIndex: 9999, opacity: 1 }}
+                className={`absolute right-0 top-full mt-1.5 w-80 max-w-[calc(100vw-24px)] rounded-2xl p-2.5 z-[9999] shadow-2xl border-2 transition-all ${
                   isDark
-                    ? 'bg-slate-800 border-slate-600 text-white'
+                    ? 'bg-slate-900 border-slate-700 text-white'
                     : 'bg-white border-slate-300 text-slate-900'
                 }`}
               >
@@ -380,14 +380,14 @@ export const BibleNavigation: React.FC = () => {
                       setReadingMode('split-vertical');
                       setIsCompareDropdownOpen(false);
                     }}
-                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                       readingMode === 'split-vertical'
                         ? isDark
-                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
-                          : 'bg-amber-50 border-amber-400 text-amber-950'
+                          ? 'bg-amber-950 text-amber-200 border-amber-500 shadow-xs'
+                          : 'bg-amber-50 text-amber-950 border-amber-400 shadow-xs'
                         : isDark
-                        ? 'border-slate-700/60 hover:bg-slate-700/50 text-slate-300'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        ? 'bg-slate-900 border-slate-700/80 hover:bg-slate-800 text-slate-200'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -410,14 +410,14 @@ export const BibleNavigation: React.FC = () => {
                       setReadingMode('side-by-side');
                       setIsCompareDropdownOpen(false);
                     }}
-                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                       readingMode === 'side-by-side'
                         ? isDark
-                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
-                          : 'bg-amber-50 border-amber-400 text-amber-950'
+                          ? 'bg-amber-950 text-amber-200 border-amber-500 shadow-xs'
+                          : 'bg-amber-50 text-amber-950 border-amber-400 shadow-xs'
                         : isDark
-                        ? 'border-slate-700/60 hover:bg-slate-700/50 text-slate-300'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        ? 'bg-slate-900 border-slate-700/80 hover:bg-slate-800 text-slate-200'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -440,14 +440,14 @@ export const BibleNavigation: React.FC = () => {
                       setReadingMode('single');
                       setIsCompareDropdownOpen(false);
                     }}
-                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all ${
+                    className={`w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
                       readingMode === 'single'
                         ? isDark
-                          ? 'bg-amber-950/70 border-amber-500 text-amber-200'
-                          : 'bg-amber-50 border-amber-400 text-amber-950'
+                          ? 'bg-amber-950 text-amber-200 border-amber-500 shadow-xs'
+                          : 'bg-amber-50 text-amber-950 border-amber-400 shadow-xs'
                         : isDark
-                        ? 'border-slate-700/60 hover:bg-slate-700/50 text-slate-300'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        ? 'bg-slate-900 border-slate-700/80 hover:bg-slate-800 text-slate-200'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -480,14 +480,14 @@ export const BibleNavigation: React.FC = () => {
                             onClick={() => {
                               setParallelVersion(v.id);
                             }}
-                            className={`px-2 py-1.5 rounded-lg text-xs font-semibold border text-left flex items-center justify-between transition-all ${
+                            className={`px-2 py-1.5 rounded-lg text-xs font-semibold border text-left flex items-center justify-between transition-all cursor-pointer ${
                               isSelected
                                 ? isDark
-                                  ? 'bg-amber-600 text-white border-amber-500 font-bold'
-                                  : 'bg-amber-600 text-white border-amber-600 font-bold'
+                                  ? 'bg-amber-600 text-white border-amber-500 font-bold shadow-xs'
+                                  : 'bg-amber-600 text-white border-amber-600 font-bold shadow-xs'
                                 : isDark
-                                ? 'border-slate-700 hover:bg-slate-700 text-slate-300'
-                                : 'border-slate-200 hover:bg-slate-100 text-slate-700'
+                                ? 'bg-slate-900 border-slate-700 hover:bg-slate-800 text-slate-200'
+                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
                             }`}
                           >
                             <span>{v.label}</span>

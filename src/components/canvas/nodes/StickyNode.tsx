@@ -25,8 +25,11 @@ export const StickyNode = memo(({ id, data, isConnectable }: NodeProps & { data:
       {/* Cinta adhesiva decorativa simulada */}
       <div className={`absolute -top-2.5 left-1/2 -translate-x-1/2 w-16 h-5 ${style.tape} rounded-sm shadow-inner opacity-80 rotate-1`} />
 
-      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="!bg-slate-500" />
-      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="!bg-slate-500" />
+      {/* Handles para conexiones en los 4 costados con id explícito */}
+      <Handle type="source" id="top" position={Position.Top} isConnectable={isConnectable} />
+      <Handle type="source" id="left" position={Position.Left} isConnectable={isConnectable} />
+      <Handle type="source" id="right" position={Position.Right} isConnectable={isConnectable} />
+      <Handle type="source" id="bottom" position={Position.Bottom} isConnectable={isConnectable} />
 
       {/* Cabecera y botón cerrar */}
       <div className="flex items-center justify-between pb-1 pt-1 mb-1">
@@ -51,8 +54,6 @@ export const StickyNode = memo(({ id, data, isConnectable }: NodeProps & { data:
         className="w-full bg-transparent border-none focus:outline-none text-xs text-slate-800 leading-relaxed resize-none"
       />
 
-      <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="!bg-slate-500" />
-      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="!bg-slate-500" />
     </div>
   );
 });

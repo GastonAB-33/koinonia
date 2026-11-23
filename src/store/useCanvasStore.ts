@@ -13,6 +13,7 @@ import {
 import { CanvasCustomNode, ConceptNodeData, StickyNodeData } from '../types/canvas';
 import { BibleVerse } from '../types/bible';
 import { BIBLE_BOOKS } from '../services/bible/mockBibleData';
+import { useBibleStore } from './useBibleStore';
 
 interface StudyCanvasData {
   nodes: CanvasCustomNode[];
@@ -110,7 +111,9 @@ const DEFAULT_GENESIS_JUAN_CANVAS: StudyCanvasData = {
     {
       id: 'edge-1',
       source: 'node-gen-1',
+      sourceHandle: 'right',
       target: 'node-concept-logos',
+      targetHandle: 'left',
       label: 'Anticipación Cósmica',
       animated: true,
       style: { stroke: '#c29b38', strokeWidth: 2 },
@@ -119,7 +122,9 @@ const DEFAULT_GENESIS_JUAN_CANVAS: StudyCanvasData = {
     {
       id: 'edge-2',
       source: 'node-concept-logos',
+      sourceHandle: 'right',
       target: 'node-jhn-1',
+      targetHandle: 'left',
       label: 'Revelación Plena',
       animated: true,
       style: { stroke: '#3b82f6', strokeWidth: 2 },
@@ -128,7 +133,9 @@ const DEFAULT_GENESIS_JUAN_CANVAS: StudyCanvasData = {
     {
       id: 'edge-3',
       source: 'node-jhn-1',
+      sourceHandle: 'bottom',
       target: 'node-jhn-14',
+      targetHandle: 'top',
       label: 'Encarnación Histórica',
       style: { stroke: '#8b5cf6', strokeWidth: 2 },
       markerEnd: { type: MarkerType.ArrowClosed, color: '#8b5cf6' }
@@ -136,9 +143,12 @@ const DEFAULT_GENESIS_JUAN_CANVAS: StudyCanvasData = {
     {
       id: 'edge-4',
       source: 'node-jhn-14',
+      sourceHandle: 'left',
       target: 'node-sticky-reflection',
+      targetHandle: 'right',
       label: 'Aplicación Pastoral',
-      style: { stroke: '#64748b', strokeDasharray: '5,5' }
+      style: { stroke: '#64748b', strokeDasharray: '5,5' },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' }
     }
   ]
 };
@@ -209,7 +219,8 @@ export const useCanvasStore = create<CanvasStoreState>()(
       addVerseNodeToCanvas: (studyId: string, verse: BibleVerse) => {
         const current = get().getStudyCanvas(studyId);
         const book = BIBLE_BOOKS.find((b) => b.id.toUpperCase() === verse.bookId.toUpperCase());
-        const bookName = book ? book.name : verse.bookId;
+        const customBook = useBibleStore.getState().customBooks?.find((cb) => cb.id === verse.bookId);
+        const bookName = book ? book.name : (customBook ? customBook.title : verse.bookId);
 
         const offset = (current.nodes.length % 5) * 40;
 

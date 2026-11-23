@@ -1,11 +1,23 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSketchbookStore } from '../../store/useSketchbookStore';
 import { useStudyStore } from '../../store/useStudyStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { SketchbookToolbar } from './SketchbookToolbar';
 import { SketchbookCanvas } from './SketchbookCanvas';
 import { SketchFontFamily, SketchFontSize } from '../../types/sketchbook';
-import { Bookmark, Trash2, Edit3, Calendar, BookOpen } from 'lucide-react';
+import {
+  Bookmark,
+  Trash2,
+  Edit3,
+  Calendar,
+  BookOpen,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Hand,
+  MousePointer,
+  PenTool
+} from 'lucide-react';
 
 const FONT_CLASSES: Record<SketchFontFamily, string> = {
   serif: 'font-serif',
@@ -23,7 +35,7 @@ const SIZE_CLASSES: Record<SketchFontSize, string> = {
 };
 
 export const SketchbookWorkspace: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const { activeStudyId } = useStudyStore();
   const {
     getStudyData,
@@ -46,10 +58,14 @@ export const SketchbookWorkspace: React.FC = () => {
 
   const studyData = getStudyData(activeStudyId);
   const activePage = getActivePage(activeStudyId);
-  const [dimensions, setDimensions] = useState({ width: 950, height: 1400 });
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
 
-  // Al montar o ingresar a la sección de estudio, activar siempre el puntero para evitar rayones involuntarios
+  // Estado de la cámara de la pizarra infinita (Pan y Zoom)
+  const [pan, setPan] = useState({ x: 60, y: 30 });
+  const [zoom, setZoom] = useState(1);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const hasInitializedPosRef = useRef(false);
+
+  // Al montar o ingresar a la sección de estudio, activar por defecto el puntero
   useEffect(() => {
     setActiveDrawingTool('select');
   }, [setActiveDrawingTool]);
@@ -58,27 +74,124 @@ export const SketchbookWorkspace: React.FC = () => {
     setEditingBlockId((prev) => (prev === blockId ? null : blockId));
   };
 
-  useEffect(() => {
-    const updateSize = () => {
-      if (containerRef.current) {
-        const w = containerRef.current.scrollWidth;
-        const h = Math.max(containerRef.current.scrollHeight, 1400);
-        setDimensions({ width: w, height: h });
-      }
-    };
+  // Centrar la hoja en el viewport
+  const handleCenter = useCallback(() => {
+    if (!workspaceRef.current) return;
+    const rect = workspaceRef.current.getBoundingClientRect();
+    const w = rect.width;
+    const sheetWidth = 960;
+    // Si la pantalla es más angosta que la hoja (ej. celular o tablet), ajustar el zoom para encajar perfectamente
+    const targetZoom = w < 1000 ? Math.max(0.35, Math.min(1.0, (w - 32) / sheetWidth)) : 1.0;
+    const targetPanX = Math.max(16, (w - sheetWidth * targetZoom) / 2);
+    const targetPanY = 32;
 
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    const observer = new ResizeObserver(updateSize);
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
+    setZoom(targetZoom);
+    setPan({ x: targetPanX, y: targetPanY });
+  }, []);
+
+  // Posicionamiento inicial centrado
+  useEffect(() => {
+    if (!hasInitializedPosRef.current && workspaceRef.current) {
+      handleCenter();
+      hasInitializedPosRef.current = true;
+    }
+  }, [handleCenter, activePage?.id]);
+
+  // Controles de zoom
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev * 1.2, 3.0));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev / 1.2, 0.2));
+  };
+
+  const handleResetZoom = () => {
+    setZoom(1.0);
+  };
+
+  // Fondo infinito adaptable según el patrón de la página (cuadrícula, puntos, cornell, blanco)
+  const infiniteBgStyle = useMemo(() => {
+    if (!activePage) return {};
+    const isDots = activePage.pattern === 'dots';
+    const isCornellOrGrid = activePage.pattern === 'cornell' || activePage.pattern === 'grid';
+    const bgSize = `${28 * zoom}px ${28 * zoom}px`;
+    const bgPos = `${pan.x}px ${pan.y}px`;
+
+    if (isDots) {
+      return {
+        backgroundColor: isDark
+          ? currentTheme === 'dark-blackout'
+            ? '#000000'
+            : '#0b1120'
+          : '#f8fbfc',
+        backgroundImage: isDark
+          ? 'radial-gradient(circle, rgba(255, 255, 255, 0.16) 1.2px, transparent 1.2px)'
+          : 'radial-gradient(circle, rgba(136, 128, 75, 0.22) 1.2px, transparent 1.2px)',
+        backgroundSize: bgSize,
+        backgroundPosition: bgPos
+      };
     }
 
-    return () => {
-      window.removeEventListener('resize', updateSize);
-      observer.disconnect();
+    if (isCornellOrGrid) {
+      return {
+        backgroundColor: isDark
+          ? currentTheme === 'dark-blackout'
+            ? '#000000'
+            : '#0b1120'
+          : '#f8fbfc',
+        backgroundImage: isDark
+          ? 'linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px)'
+          : 'linear-gradient(to right, rgba(183, 214, 217, 0.32) 1px, transparent 1px), linear-gradient(to bottom, rgba(183, 214, 217, 0.32) 1px, transparent 1px)',
+        backgroundSize: bgSize,
+        backgroundPosition: bgPos
+      };
+    }
+
+    return {
+      backgroundColor: isDark
+        ? currentTheme === 'dark-blackout'
+          ? '#000000'
+          : '#0b1120'
+        : '#fcfcfc'
     };
-  }, [activePage?.id, activePage?.blocks.length]);
+  }, [activePage?.pattern, isDark, currentTheme, zoom, pan.x, pan.y]);
+
+  // Arrastre sobre el fondo cuando la herramienta es puntero
+  const handleWorkspacePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (activeDrawingTool === 'select') {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'BUTTON' ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('textarea')
+      ) {
+        return;
+      }
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const initialPan = { ...pan };
+
+      const handlePointerMove = (moveEv: PointerEvent) => {
+        setPan({
+          x: initialPan.x + (moveEv.clientX - startX),
+          y: initialPan.y + (moveEv.clientY - startY)
+        });
+      };
+
+      const handlePointerUp = () => {
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    }
+  };
 
   if (!activePage) {
     return (
@@ -88,16 +201,6 @@ export const SketchbookWorkspace: React.FC = () => {
     );
   }
 
-  // Estilo de fondo según el patrón elegido
-  const patternClass =
-    activePage.pattern === 'grid'
-      ? 'bg-pattern-grid'
-      : activePage.pattern === 'dots'
-      ? 'bg-pattern-dots'
-      : activePage.pattern === 'cornell'
-      ? 'bg-pattern-grid'
-      : '';
-
   return (
     <div
       className={`h-full flex flex-col overflow-hidden select-none relative transition-colors ${
@@ -105,32 +208,52 @@ export const SketchbookWorkspace: React.FC = () => {
           ? currentTheme === 'dark-blackout'
             ? 'bg-black text-white'
             : 'bg-[#0b1120] text-white'
-          : 'bg-[#eef3f4] text-slate-800'
+          : 'bg-[#f4f8f8] text-slate-800'
       }`}
     >
-      {/* Barra de herramientas superior */}
+      {/* 1. Barra de herramientas superior */}
       <SketchbookToolbar />
 
-      {/* Área de la Libreta Digital (Tablet / Planner View) */}
+      {/* 2. Área de Pizarra Infinita (Sin límites de hoja, movimiento libre y dibujo libre) */}
       <div
-        onClick={() => setSelectedBlockId(null)}
-        className="flex-1 overflow-y-auto overflow-x-auto p-2 sm:p-6 lg:p-8 flex justify-center items-start"
+        ref={workspaceRef}
+        onPointerDown={handleWorkspacePointerDown}
+        style={infiniteBgStyle}
+        className="flex-1 relative overflow-hidden w-full h-full touch-none select-none"
       >
-        {/* Contenedor de la Hoja de Estudio */}
-        <div className="flex items-start max-w-5xl w-full">
-          {/* Hoja de Cuaderno */}
-          <div
-            ref={containerRef}
-            className={`flex-1 min-h-[700px] sm:min-h-[950px] rounded-2xl sm:rounded-3xl shadow-xl p-3.5 sm:p-10 relative overflow-hidden transition-all ${
-              isDark
-                ? 'bg-slate-900 border-2 border-slate-700/80 text-white shadow-2xl'
-                : 'bg-white border-2 border-[#d1e2e4]'
-            } ${patternClass}`}
-            style={{ touchAction: activeDrawingTool === 'select' ? 'auto' : 'none' }}
-          >
-            {/* Capa de Dibujo y Diagramación */}
-            <SketchbookCanvas width={dimensions.width} height={dimensions.height} />
+        {/* Capa de Dibujo y Diagramación en Coordenadas Globales Infinitas */}
+        <SketchbookCanvas
+          pan={pan}
+          zoom={zoom}
+          onPanChange={setPan}
+          onZoomChange={setZoom}
+          containerRef={workspaceRef}
+        />
 
+        {/* Capa de Contenido de la Hoja de Estudio (Estructura Cornell y Bloques de Texto) */}
+        <div
+          onClick={() => setSelectedBlockId(null)}
+          className="absolute top-0 left-0 transition-transform duration-75 ease-out will-change-transform"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            width: '960px',
+            pointerEvents: activeDrawingTool === 'select' ? 'auto' : 'none'
+          }}
+        >
+          {/* Hoja de Cuaderno Cornell / Estudio Digital (Sin recorte overflow-hidden para dibujo totalmente libre) */}
+          <div
+            className={`w-full min-h-[1400px] p-5 sm:p-10 rounded-3xl transition-all relative ${
+              isDark
+                ? 'bg-slate-900/85 border border-slate-700/80 text-white shadow-2xl'
+                : 'bg-white/90 border border-[#d1e2e4] text-slate-800 shadow-xl'
+            }`}
+            style={{
+              boxShadow: isDark
+                ? '0 25px 60px -15px rgba(0, 0, 0, 0.7)'
+                : '0 25px 60px -15px rgba(183, 214, 217, 0.35)'
+            }}
+          >
             {/* Cabecera de la Página estilo Cornell / Planner */}
             <div
               className={`relative z-10 pb-6 mb-6 border-b-2 flex flex-wrap items-baseline justify-between gap-4 ${
@@ -158,7 +281,9 @@ export const SketchbookWorkspace: React.FC = () => {
                   }
                   placeholder="Título de la sesión de estudio..."
                   className={`font-serif font-bold text-xl sm:text-2xl bg-transparent border-none focus:outline-none w-full ${
-                    isDark ? 'text-white placeholder:text-slate-600' : 'text-slate-800 placeholder:text-slate-300'
+                    isDark
+                      ? 'text-white placeholder:text-slate-600'
+                      : 'text-slate-800 placeholder:text-slate-300'
                   }`}
                 />
               </div>
@@ -179,7 +304,7 @@ export const SketchbookWorkspace: React.FC = () => {
             </div>
 
             {/* Cuerpo de la Página (Disposición Cornell o Libre) */}
-            <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 min-h-[650px]">
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-8 min-h-[700px]">
               {/* Columna Izquierda: Cue Column estilo Cornell */}
               {activePage.pattern === 'cornell' && (
                 <div
@@ -201,9 +326,11 @@ export const SketchbookWorkspace: React.FC = () => {
                       updatePageCornell(activeStudyId, e.target.value, activePage.summary)
                     }
                     placeholder="Anota aquí palabras clave, preguntas de repaso o números Strong..."
-                    rows={12}
+                    rows={14}
                     className={`w-full bg-transparent border-none focus:outline-none font-handwriting text-xl leading-relaxed resize-none p-1 ${
-                      isDark ? 'text-slate-100 placeholder:text-slate-600' : 'text-slate-700 placeholder:text-slate-300'
+                      isDark
+                        ? 'text-slate-100 placeholder:text-slate-600'
+                        : 'text-slate-700 placeholder:text-slate-300'
                     }`}
                   />
                 </div>
@@ -266,7 +393,7 @@ export const SketchbookWorkspace: React.FC = () => {
                             : 'hover:bg-white/80 border-transparent hover:border-slate-200/60'
                         }`}
                       >
-                        {/* Acciones de bloque (visibles en modo select o cuando está seleccionado) */}
+                        {/* Acciones de bloque */}
                         <div
                           className={`absolute top-2 right-2 flex items-center gap-1 transition-opacity z-30 ${
                             isSelected || activeDrawingTool === 'select'
@@ -280,7 +407,9 @@ export const SketchbookWorkspace: React.FC = () => {
                               toggleEditBlock(block.id);
                             }}
                             className={`p-1.5 shadow-xs rounded-lg transition-colors ${
-                              isDark ? 'bg-slate-800 text-slate-300 hover:text-white' : 'bg-white text-slate-500 hover:text-slate-800'
+                              isDark
+                                ? 'bg-slate-800 text-slate-300 hover:text-white'
+                                : 'bg-white text-slate-500 hover:text-slate-800'
                             }`}
                             title="Editar texto"
                           >
@@ -293,7 +422,9 @@ export const SketchbookWorkspace: React.FC = () => {
                               if (selectedBlockId === block.id) setSelectedBlockId(null);
                             }}
                             className={`p-1.5 shadow-xs rounded-lg transition-colors ${
-                              isDark ? 'bg-slate-800 text-slate-400 hover:text-red-400' : 'bg-white text-slate-400 hover:text-red-600'
+                              isDark
+                                ? 'bg-slate-800 text-slate-400 hover:text-red-400'
+                                : 'bg-white text-slate-400 hover:text-red-600'
                             }`}
                             title="Eliminar bloque"
                           >
@@ -326,7 +457,9 @@ export const SketchbookWorkspace: React.FC = () => {
                               isDark
                                 ? 'bg-slate-800 text-white border-slate-700 focus:ring-amber-500'
                                 : 'bg-white border-slate-300 text-slate-800 focus:ring-[#88804B]'
-                            } ${fontClass} ${sizeClass} ${block.bold ? 'font-bold' : 'font-normal'} ${block.italic ? 'italic' : 'not-italic'}`}
+                            } ${fontClass} ${sizeClass} ${block.bold ? 'font-bold' : 'font-normal'} ${
+                              block.italic ? 'italic' : 'not-italic'
+                            }`}
                             autoFocus
                           />
                         ) : (
@@ -336,13 +469,19 @@ export const SketchbookWorkspace: React.FC = () => {
                             } ${block.italic ? 'italic' : 'not-italic'} leading-relaxed whitespace-pre-line ${
                               isDark ? 'text-white' : 'text-slate-800'
                             }`}
-                            style={{ color: isDark ? (block.color && block.color !== '#1e293b' ? block.color : '#ffffff') : block.color }}
+                            style={{
+                              color: isDark
+                                ? block.color && block.color !== '#1e293b'
+                                  ? block.color
+                                  : '#ffffff'
+                                : block.color
+                            }}
                           >
                             {block.content}
                           </p>
                         )}
 
-                        {/* Cita bíblica si proviene de las Escrituras */}
+                        {/* Cita bíblica */}
                         {block.verseRef && (
                           <div
                             className={`mt-3 flex items-center gap-2 text-[11px] font-bold tracking-wider uppercase ${
@@ -351,7 +490,9 @@ export const SketchbookWorkspace: React.FC = () => {
                           >
                             <Bookmark
                               className={`w-3 h-3 ${
-                                isDark ? 'text-[#ff3344] fill-[#ff3344]' : 'text-[#88804B] fill-[#88804B]'
+                                isDark
+                                  ? 'text-[#ff3344] fill-[#ff3344]'
+                                  : 'text-[#88804B] fill-[#88804B]'
                               }`}
                             />
                             <span>
@@ -398,37 +539,142 @@ export const SketchbookWorkspace: React.FC = () => {
                   rows={3}
                   placeholder="Redacta las conclusiones finales o lecciones prácticas de este pasaje..."
                   className={`w-full bg-transparent border-none focus:outline-none text-xs leading-relaxed resize-none p-1 ${
-                    isDark ? 'text-slate-200 placeholder:text-slate-600' : 'text-slate-700 placeholder:text-slate-300'
+                    isDark
+                      ? 'text-slate-200 placeholder:text-slate-600'
+                      : 'text-slate-700 placeholder:text-slate-300'
                   }`}
                 />
               </div>
             )}
           </div>
+        </div>
 
-          {/* Pestañas de Índice Lateral (Margen derecho como libreta digital de iPad) */}
-          <div className="hidden sm:flex flex-col -space-y-1 ml-1 pt-6 z-20">
-            {studyData.pages.map((p, index) => {
-              const isCurrent = index === studyData.activePageIndex;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setActivePageIndex(activeStudyId, index)}
-                  className={`w-11 py-3 px-1 rounded-r-xl text-[11px] font-bold uppercase tracking-wider transition-all shadow-md flex flex-col items-center justify-center gap-1 border-y border-r ${
-                    isCurrent
-                      ? isDark
-                        ? 'bg-amber-600 text-white border-amber-600 translate-x-1 font-extrabold z-10'
-                        : 'bg-[#88804B] text-white border-[#88804B] translate-x-1 font-extrabold z-10'
-                      : isDark
-                      ? 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
-                      : 'bg-white text-slate-600 border-[#d1e2e4] hover:bg-[#f4f8f8]'
-                  }`}
-                  title={`Ir a Página ${p.pageNumber}: ${p.title}`}
-                >
-                  <span className="text-[9px]">PÁG</span>
-                  <span className="text-xs">{p.pageNumber}</span>
-                </button>
-              );
-            })}
+        {/* 3. Pestañas de Índice Lateral Flotantes (Margen derecho como libreta digital de iPad) */}
+        <div className="absolute right-2 top-16 z-30 hidden sm:flex flex-col -space-y-1">
+          {studyData.pages.map((p, index) => {
+            const isCurrent = index === studyData.activePageIndex;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setActivePageIndex(activeStudyId, index)}
+                className={`w-11 py-3 px-1 rounded-l-xl text-[11px] font-bold uppercase tracking-wider transition-all shadow-md flex flex-col items-center justify-center gap-1 border-y border-l ${
+                  isCurrent
+                    ? isDark
+                      ? 'bg-amber-600 text-white border-amber-600 -translate-x-1 font-extrabold z-10'
+                      : 'bg-[#88804B] text-white border-[#88804B] -translate-x-1 font-extrabold z-10'
+                    : isDark
+                    ? 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-white'
+                    : 'bg-white text-slate-600 border-[#d1e2e4] hover:bg-[#f4f8f8]'
+                }`}
+                title={`Ir a Página ${p.pageNumber}: ${p.title}`}
+              >
+                <span className="text-[9px]">PÁG</span>
+                <span className="text-xs">{p.pageNumber}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 4. Barra Flotante de Navegación y Zoom (Estilo Modo Pizarra) */}
+        <div
+          className={`absolute bottom-4 left-4 z-30 flex items-center gap-1 p-1.5 rounded-2xl shadow-xl backdrop-blur-md border text-xs select-none transition-colors ${
+            isDark
+              ? 'bg-slate-900/90 border-slate-700 text-white shadow-black/70'
+              : 'bg-white/95 border-slate-200 text-slate-800 shadow-lg'
+          }`}
+        >
+          <button
+            onClick={handleZoomIn}
+            className={`p-1.5 rounded-xl transition-colors ${
+              isDark ? 'hover:bg-slate-800 text-slate-300 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+            }`}
+            title="Acercar (+)"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={handleResetZoom}
+            className={`px-2 py-1 rounded-xl text-[11px] font-bold font-mono transition-colors min-w-[46px] text-center ${
+              isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+            }`}
+            title="Restablecer zoom al 100%"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+
+          <button
+            onClick={handleZoomOut}
+            className={`p-1.5 rounded-xl transition-colors ${
+              isDark ? 'hover:bg-slate-800 text-slate-300 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+            }`}
+            title="Alejar (-)"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+
+          <div className={`h-4 w-px mx-0.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+          <button
+            onClick={handleCenter}
+            className={`p-1.5 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-medium ${
+              isDark ? 'hover:bg-slate-800 text-slate-300 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'
+            }`}
+            title="Ajustar y centrar hoja de estudio"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">Centrar</span>
+          </button>
+
+          <div className={`h-4 w-px mx-0.5 ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+
+          {/* Selector rápido entre Puntero, Mano y Lápiz */}
+          <div className="flex items-center gap-0.5 pl-0.5">
+            <button
+              onClick={() => setActiveDrawingTool('select')}
+              className={`p-1.5 rounded-xl transition-all ${
+                activeDrawingTool === 'select'
+                  ? isDark
+                    ? 'bg-slate-700 text-amber-400 font-bold'
+                    : 'bg-slate-100 text-[#88804B] font-bold'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Herramienta Puntero: seleccionar texto"
+            >
+              <MousePointer className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setActiveDrawingTool('hand')}
+              className={`p-1.5 rounded-xl transition-all ${
+                activeDrawingTool === 'hand'
+                  ? isDark
+                    ? 'bg-slate-700 text-amber-400 font-bold'
+                    : 'bg-slate-100 text-[#88804B] font-bold'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Herramienta Mano: arrastrar y mover libremente como en la pizarra"
+            >
+              <Hand className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setActiveDrawingTool('pen')}
+              className={`p-1.5 rounded-xl transition-all ${
+                activeDrawingTool === 'pen'
+                  ? isDark
+                    ? 'bg-slate-700 text-amber-400 font-bold'
+                    : 'bg-slate-100 text-[#88804B] font-bold'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Herramienta Lápiz: dibujar libremente"
+            >
+              <PenTool className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>

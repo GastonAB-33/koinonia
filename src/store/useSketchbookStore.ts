@@ -11,6 +11,7 @@ import {
 } from '../types/sketchbook';
 import { BibleVerse } from '../types/bible';
 import { BIBLE_BOOKS } from '../services/bible/mockBibleData';
+import { useBibleStore } from './useBibleStore';
 
 interface StudySketchbookData {
   pages: SketchPage[];
@@ -533,16 +534,19 @@ export const useSketchbookStore = create<SketchbookStoreState>()(
         if (!page) return;
 
         const book = BIBLE_BOOKS.find((b) => b.id.toUpperCase() === verse.bookId.toUpperCase());
-        const bookName = book ? book.name : verse.bookId;
+        const customBook = useBibleStore.getState().customBooks?.find((cb) => cb.id === verse.bookId);
+        const bookName = book ? book.name : (customBook ? customBook.title : verse.bookId);
 
         const words = verse.text.trim().split(' ');
-        const firstWord = words[0]?.replace(/[.,;:]/g, '').toUpperCase() || 'VERSÍCULO';
+        const firstWord = words[0]?.replace(/[.,;:]/g, '').toUpperCase() || (customBook ? 'PÁRRAFO' : 'VERSÍCULO');
         const remainingText = words.slice(1).join(' ');
 
         const blockId = `sblk-${Date.now()}`;
         const newBlock: SketchTextBlock = {
           id: blockId,
-          title: `${firstWord} — ${bookName} ${verse.chapter}:${verse.verse} (${verse.version})`,
+          title: customBook
+            ? `«${firstWord}» — ${customBook.title} (Cap. ${verse.chapter}, § ${verse.verse})`
+            : `${firstWord} — ${bookName} ${verse.chapter}:${verse.verse} (${verse.version})`,
           content: `${words[0]} ${remainingText}`,
           fontFamily: get().activeFontFamily,
           fontSize: get().activeFontSize || 'lg',

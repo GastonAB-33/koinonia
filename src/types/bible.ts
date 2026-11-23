@@ -53,6 +53,8 @@ export interface Highlight {
   color: HighlightColor;
   createdAt: string;
   note?: string;
+  sentenceKey?: string;
+  text?: string;
 }
 
 export interface CustomChapter {

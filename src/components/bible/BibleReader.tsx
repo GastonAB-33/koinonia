@@ -3,6 +3,7 @@ import { useBibleStore } from '../../store/useBibleStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { BibleNavigation } from './BibleNavigation';
 import { VerseItem } from './VerseItem';
+import { CustomBookReader } from './CustomBookReader';
 import { PhraseSelectionMenu } from './PhraseSelectionMenu';
 import { BibleVerse, BibleVersion } from '../../types/bible';
 import { useIsMobile } from '../../hooks/useMediaQuery';
@@ -292,7 +293,7 @@ export const BibleReader: React.FC = () => {
             {/* Cabecera compacta de la versión superior */}
             <div
               className={`px-3.5 py-1.5 flex items-center justify-between border-b shrink-0 select-none ${
-                isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-amber-50/90 border-amber-200/60'
+                isDark ? 'bg-slate-900 border-slate-800' : 'bg-amber-50 border-amber-200'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -328,25 +329,11 @@ export const BibleReader: React.FC = () => {
               onTouchEnd={handleTextSelection}
               onScroll={handleTopScroll}
             >
-              {isStudyingCustomBook ? (
-                currentCustomChapter?.paragraphs.map((p, idx) => (
-                  <div
-                    key={`custom-top-p-${idx}`}
-                    data-verse-ref={`${activeCustomBook?.id}-${currentCustomChapter.chapter}-${idx + 1}`}
-                    data-verse-book={activeCustomBook?.id}
-                    data-verse-chapter={currentCustomChapter.chapter}
-                    data-verse-num={idx + 1}
-                    data-verse-version="LIBRO"
-                    className="py-1 leading-relaxed group"
-                  >
-                    <sup className={`font-sans text-[11px] mr-1.5 select-none font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
-                      {idx + 1}
-                    </sup>
-                    <span className={`font-serif text-[17px] select-text ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                      {p}
-                    </span>
-                  </div>
-                ))
+              {isStudyingCustomBook && activeCustomBook && currentCustomChapter ? (
+                <CustomBookReader
+                  book={activeCustomBook}
+                  chapter={currentCustomChapter}
+                />
               ) : (
                 chapterData?.verses.map((verse) => (
                   <VerseItem key={`top-v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
@@ -375,7 +362,7 @@ export const BibleReader: React.FC = () => {
             {/* Cabecera compacta con selector de versión paralela */}
             <div
               className={`px-3.5 py-1.5 flex items-center justify-between border-b shrink-0 select-none ${
-                isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-blue-50/90 border-blue-200/60'
+                isDark ? 'bg-slate-900 border-slate-800' : 'bg-blue-50 border-blue-200'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -475,32 +462,16 @@ export const BibleReader: React.FC = () => {
 
               {/* Contenido de la columna principal */}
               <div className="text-left sm:text-justify leading-loose space-y-1">
-                {isStudyingCustomBook
-                  ? currentCustomChapter?.paragraphs.map((p, idx) => (
-                      <div
-                        key={`custom-desk-p-${idx}`}
-                        data-verse-ref={`${activeCustomBook?.id}-${currentCustomChapter.chapter}-${idx + 1}`}
-                        data-verse-book={activeCustomBook?.id}
-                        data-verse-chapter={currentCustomChapter.chapter}
-                        data-verse-num={idx + 1}
-                        data-verse-version="LIBRO"
-                        className="py-1.5 leading-relaxed group"
-                      >
-                        <sup
-                          className={`font-sans text-[11px] mr-2 select-none font-bold ${
-                            isDark ? 'text-purple-400' : 'text-purple-700'
-                          }`}
-                        >
-                          {idx + 1}
-                        </sup>
-                        <span className={`font-serif text-[18px] select-text ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                          {p}
-                        </span>
-                      </div>
-                    ))
-                  : chapterData?.verses.map((verse) => (
-                      <VerseItem key={`v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
-                    ))}
+                {isStudyingCustomBook && activeCustomBook && currentCustomChapter ? (
+                  <CustomBookReader
+                    book={activeCustomBook}
+                    chapter={currentCustomChapter}
+                  />
+                ) : (
+                  chapterData?.verses.map((verse) => (
+                    <VerseItem key={`v-${verse.bookId}-${verse.chapter}-${verse.verse}`} verse={verse} />
+                  ))
+                )}
               </div>
             </div>
 

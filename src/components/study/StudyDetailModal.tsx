@@ -5,6 +5,7 @@ import { useStudyStore } from '../../store/useStudyStore';
 import { useSketchbookStore } from '../../store/useSketchbookStore';
 import { useCanvasStore } from '../../store/useCanvasStore';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useCloudStore } from '../../store/useCloudStore';
 import {
   BookOpen,
   Calendar,
@@ -22,7 +23,8 @@ import {
   ChevronRight,
   Lightbulb,
   HelpCircle,
-  Quote
+  Quote,
+  Share2
 } from 'lucide-react';
 
 interface StudyDetailModalProps {
@@ -52,6 +54,7 @@ export const StudyDetailModal: React.FC<StudyDetailModalProps> = ({
   const { getStudyData } = useSketchbookStore();
   const { canvasByStudy } = useCanvasStore();
   const { currentTheme } = useThemeStore();
+  const { setStudyToShare } = useCloudStore();
 
   const isDark = currentTheme === 'dark' || currentTheme === 'dark-blackout';
 
@@ -481,12 +484,25 @@ export const StudyDetailModal: React.FC<StudyDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Acciones de Gestión (Duplicar, Descargar, Eliminar) */}
+          {/* Acciones de Gestión (Duplicar, Descargar, Compartir, Eliminar) */}
           <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-              Gestión del Estudio
+              Gestión del Estudio & Nube
             </span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                onClick={() => setStudyToShare(study)}
+                className={`py-2 px-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                  isDark
+                    ? 'bg-indigo-950/40 border-indigo-800/80 hover:bg-indigo-900/60 text-indigo-300'
+                    : 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100 text-indigo-950 shadow-2xs'
+                }`}
+                title="Compartir enlace en la nube con amigos o grupo"
+              >
+                <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Compartir</span>
+              </button>
+
               <button
                 onClick={handleDuplicate}
                 className={`py-2 px-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
@@ -510,7 +526,7 @@ export const StudyDetailModal: React.FC<StudyDetailModalProps> = ({
                 title="Exportar notas a archivo Markdown"
               >
                 <Download className="w-3.5 h-3.5 text-blue-500" />
-                <span>Exportar MD</span>
+                <span>Exportar</span>
               </button>
 
               <button

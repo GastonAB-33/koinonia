@@ -4,6 +4,7 @@ import { Study, StudyBlock } from '../types/study';
 import { BibleVerse } from '../types/bible';
 import { BIBLE_BOOKS } from '../services/bible/mockBibleData';
 import { useAuthStore } from './useAuthStore';
+import { useBibleStore } from './useBibleStore';
 
 interface StudyState {
   studies: Study[];
@@ -27,6 +28,11 @@ interface StudyState {
   // Gestión de bloques
   addVerseToActiveStudy: (verse: BibleVerse) => void;
   addPhraseToActiveStudy: (phrase: string, verse: BibleVerse) => void;
+  addSentencesToActiveStudy: (
+    customBookId: string,
+    chapterNum: number,
+    sentences: { key: string; text: string; paragraphIndex: number; index: number }[]
+  ) => void;
   addTextBlockToActiveStudy: (content: string, type?: StudyBlock['type']) => void;
   updateBlockContent: (blockId: string, content: string) => void;
   removeBlock: (blockId: string) => void;
@@ -295,12 +301,13 @@ export const useStudyStore = create<StudyState>()(
         if (!activeStudy) return;
 
         const book = BIBLE_BOOKS.find((b) => b.id.toUpperCase() === verse.bookId.toUpperCase());
-        const bookName = book ? book.name : verse.bookId;
+        const customBook = useBibleStore.getState().customBooks?.find((cb) => cb.id === verse.bookId);
+        const bookName = book ? book.name : (customBook ? customBook.title : verse.bookId);
 
         const newBlock: StudyBlock = {
           id: `verse-block-${Date.now()}`,
           type: 'verse_quote',
-          content: '',
+          content: customBook ? `Párrafo de «${customBook.title}» (Capítulo ${verse.chapter}, § ${verse.verse})` : '',
           verseRef: {
             bookId: verse.bookId,
             bookName,
@@ -326,12 +333,61 @@ export const useStudyStore = create<StudyState>()(
         });
       },
 
+      addSentencesToActiveStudy: (
+        customBookId: string,
+        chapterNum: number,
+        sentences: { key: string; text: string; paragraphIndex: number; index: number }[]
+      ) => {
+        const activeStudy = get().getActiveStudy();
+        if (!activeStudy || sentences.length === 0) return;
+
+        const customBook = useBibleStore.getState().customBooks?.find((cb) => cb.id === customBookId);
+        const bookName = customBook ? customBook.title : 'Libro Propio';
+        const combinedText = sentences.map((s) => s.text.trim()).join(' ');
+
+        const newBlock: StudyBlock = {
+          id: `custom-sentences-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          type: 'verse_quote',
+          content: sentences.length === 1
+            ? `Cita de «${bookName}» (Capítulo ${chapterNum})`
+            : `${sentences.length} oraciones extraídas de «${bookName}» (Capítulo ${chapterNum})`,
+          verseRef: {
+            bookId: customBookId,
+            bookName,
+            chapter: chapterNum,
+            verse: sentences[0].paragraphIndex + 1,
+            version: 'LIBRO' as any,
+            text: combinedText,
+            sentenceKeys: sentences.map((s) => s.key),
+            sentenceTexts: sentences.map((s) => s.text)
+          },
+          createdAt: new Date().toISOString()
+        };
+
+        set({
+          studies: get().studies.map((s) => {
+            if (s.id === activeStudy.id) {
+              return {
+                ...s,
+                blocks: [...s.blocks, newBlock],
+                updatedAt: 'Recién editado'
+              };
+            }
+            return s;
+          })
+        });
+      },
+
       addPhraseToActiveStudy: (phrase: string, verse: BibleVerse) => {
         const activeStudy = get().getActiveStudy();
         if (!activeStudy) return;
 
         const book = BIBLE_BOOKS.find((b) => b.id.toUpperCase() === verse.bookId.toUpperCase());
-        const bookName = book ? book.name : verse.bookId;
+        const customBook = useBibleStore.getState().customBooks?.find((cb) => cb.id === verse.bookId);
+        const bookName = book ? book.name : (customBook ? customBook.title : verse.bookId);
+        const citation = customBook
+          ? `«${phrase.trim()}» (${customBook.title} Cap. ${verse.chapter}, § ${verse.verse})`
+          : `"...${phrase.trim()}..." (${bookName} ${verse.chapter}:${verse.verse} ${verse.version})`;
 
         const newBlock: StudyBlock = {
           id: `phrase-block-${Date.now()}`,
@@ -343,7 +399,7 @@ export const useStudyStore = create<StudyState>()(
             chapter: verse.chapter,
             verse: verse.verse,
             version: verse.version,
-            text: `"...${phrase.trim()}..." (${bookName} ${verse.chapter}:${verse.verse} ${verse.version})`
+            text: citation
           },
           createdAt: new Date().toISOString()
         };
